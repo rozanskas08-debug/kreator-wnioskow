@@ -54,11 +54,15 @@ function EditableField({
   const [localValue, setLocalValue] = useState(value);
   const [isEditing, setIsEditing] = useState(false);
   const [aiTip, setAiTip] = useState<string | null>(null);
+  const [aiChanges, setAiChanges] = useState<string[]>([]);
+  const [aiProposal, setAiProposal] = useState<string | null>(null); // proposed rewrite
+  const [originalBeforeAI, setOriginalBeforeAI] = useState<string | null>(null);
   const suggestMutation = trpc.ai.suggestFieldContent.useMutation();
+
+  const hasUserText = localValue.trim().length > 5;
 
   const handleAI = async () => {
     haptic();
-    setIsEditing(true);
     try {
       const result = await suggestMutation.mutateAsync({
         fieldId: field.id,
@@ -74,12 +78,40 @@ function EditableField({
         applicantName: project.applicantName,
         competitionName: project.competitionName,
       });
-      setLocalValue(result.value);
-      setAiTip(result.tip);
-      onSave(field.id, result.value);
+      if (result.isRewrite && hasUserText) {
+        // Show before/after — user must accept
+        setOriginalBeforeAI(localValue);
+        setAiProposal(result.value);
+        setAiChanges(result.changes ?? []);
+        setAiTip(result.tip);
+      } else {
+        // No existing text — just fill in directly
+        setLocalValue(result.value);
+        setAiTip(result.tip);
+        setAiChanges([]);
+        onSave(field.id, result.value);
+      }
     } catch (e) {
       Alert.alert("Błąd AI", "Nie udało się wygenerować treści. Spróbuj ponownie.");
     }
+  };
+
+  const acceptProposal = () => {
+    haptic();
+    if (aiProposal) {
+      setLocalValue(aiProposal);
+      onSave(field.id, aiProposal);
+    }
+    setAiProposal(null);
+    setOriginalBeforeAI(null);
+  };
+
+  const rejectProposal = () => {
+    haptic();
+    setAiProposal(null);
+    setOriginalBeforeAI(null);
+    setAiChanges([]);
+    setAiTip(null);
   };
 
   const handleBlur = () => {
@@ -112,7 +144,7 @@ function EditableField({
             style={({ pressed }) => ({
               flexDirection: "row",
               alignItems: "center",
-              backgroundColor: suggestMutation.isPending ? "#f0f0f0" : "#FFF3E0",
+              backgroundColor: suggestMutation.isPending ? "#f0f0f0" : hasUserText ? "#EEF2FF" : "#FFF3E0",
               borderRadius: 8,
               paddingHorizontal: 8,
               paddingVertical: 3,
@@ -121,53 +153,100 @@ function EditableField({
             })}
           >
             {suggestMutation.isPending ? (
-              <ActivityIndicator size="small" color="#E07B1A" />
+              <ActivityIndicator size="small" color={hasUserText ? "#4F46E5" : "#E07B1A"} />
             ) : (
-              <Text style={{ fontSize: 10 }}>✨</Text>
+              <Text style={{ fontSize: 10 }}>{hasUserText ? "🪄" : "✨"}</Text>
             )}
-            <Text style={{ color: "#E07B1A", fontSize: 10, fontWeight: "700" }}>
-              {suggestMutation.isPending ? "AI pisze..." : "AI pomoc"}
+            <Text style={{ color: hasUserText ? "#4F46E5" : "#E07B1A", fontSize: 10, fontWeight: "700" }}>
+              {suggestMutation.isPending ? "AI przepisuje..." : hasUserText ? "Ulepsz mój tekst" : "AI pomoc"}
             </Text>
           </Pressable>
         )}
       </View>
 
-      {/* Input */}
-      <TextInput
-        value={localValue}
-        onChangeText={setLocalValue}
-        onFocus={() => setIsEditing(true)}
-        onBlur={handleBlur}
-        placeholder={field.placeholder || `Wpisz ${field.label.toLowerCase()}...`}
-        placeholderTextColor={colors.muted}
-        multiline={isTextArea}
-        numberOfLines={isTextArea ? 4 : 1}
-        keyboardType={field.type === "number" ? "numeric" : "default"}
-        style={{
-          backgroundColor: isEditing ? colors.background : colors.surface,
-          borderRadius: 10,
-          padding: 10,
-          color: colors.foreground,
-          fontSize: 13,
-          borderWidth: 1,
-          borderColor: isEditing ? "#E07B1A" : colors.border,
-          minHeight: isTextArea ? 80 : 40,
-          textAlignVertical: isTextArea ? "top" : "center",
-          lineHeight: 18,
-        }}
-      />
+      {/* Input — hidden when showing proposal */}
+      {!aiProposal && (
+        <TextInput
+          value={localValue}
+          onChangeText={setLocalValue}
+          onFocus={() => setIsEditing(true)}
+          onBlur={handleBlur}
+          placeholder={field.placeholder || `Wpisz ${field.label.toLowerCase()}...`}
+          placeholderTextColor={colors.muted}
+          multiline={isTextArea}
+          numberOfLines={isTextArea ? 4 : 1}
+          keyboardType={field.type === "number" ? "numeric" : "default"}
+          style={{
+            backgroundColor: isEditing ? colors.background : colors.surface,
+            borderRadius: 10,
+            padding: 10,
+            color: colors.foreground,
+            fontSize: 13,
+            borderWidth: 1,
+            borderColor: isEditing ? "#E07B1A" : colors.border,
+            minHeight: isTextArea ? 80 : 40,
+            textAlignVertical: isTextArea ? "top" : "center",
+            lineHeight: 18,
+          }}
+        />
+      )}
+
+      {/* Before/After proposal panel */}
+      {aiProposal && (
+        <View style={{ borderRadius: 12, overflow: "hidden", borderWidth: 1.5, borderColor: "#4F46E5" }}>
+          {/* Original */}
+          <View style={{ backgroundColor: "#FEF2F2", padding: 10, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" }}>
+            <Text style={{ color: "#9CA3AF", fontSize: 9, fontWeight: "700", letterSpacing: 0.5, marginBottom: 4 }}>TWÓJ TEKST</Text>
+            <Text style={{ color: "#6B7280", fontSize: 12, lineHeight: 17, textDecorationLine: "line-through" }}>
+              {originalBeforeAI}
+            </Text>
+          </View>
+          {/* Proposal */}
+          <View style={{ backgroundColor: "#EEF2FF", padding: 10 }}>
+            <Text style={{ color: "#4F46E5", fontSize: 9, fontWeight: "700", letterSpacing: 0.5, marginBottom: 4 }}>🪄 WERSJA AI (PROFESJONALNA)</Text>
+            <Text style={{ color: "#1E1B4B", fontSize: 13, lineHeight: 19, fontWeight: "500" }}>
+              {aiProposal}
+            </Text>
+          </View>
+          {/* Changes list */}
+          {aiChanges.length > 0 && (
+            <View style={{ backgroundColor: "#F5F3FF", padding: 10, borderTopWidth: 1, borderTopColor: "#C7D2FE" }}>
+              <Text style={{ color: "#6D28D9", fontSize: 9, fontWeight: "700", letterSpacing: 0.5, marginBottom: 4 }}>CO ZMIENIONO:</Text>
+              {aiChanges.map((change, i) => (
+                <Text key={i} style={{ color: "#5B21B6", fontSize: 11, lineHeight: 16, marginBottom: 2 }}>• {change}</Text>
+              ))}
+            </View>
+          )}
+          {/* Accept / Reject buttons */}
+          <View style={{ flexDirection: "row", borderTopWidth: 1, borderTopColor: "#C7D2FE" }}>
+            <Pressable
+              onPress={rejectProposal}
+              style={({ pressed }) => ({ flex: 1, padding: 12, alignItems: "center", backgroundColor: pressed ? "#F3F4F6" : "#fff" })}
+            >
+              <Text style={{ color: "#6B7280", fontSize: 13, fontWeight: "600" }}>✕ Zostaw mój tekst</Text>
+            </Pressable>
+            <View style={{ width: 1, backgroundColor: "#C7D2FE" }} />
+            <Pressable
+              onPress={acceptProposal}
+              style={({ pressed }) => ({ flex: 1, padding: 12, alignItems: "center", backgroundColor: pressed ? "#EEF2FF" : "#4F46E5" })}
+            >
+              <Text style={{ color: "#fff", fontSize: 13, fontWeight: "700" }}>✓ Zastosuj wersję AI</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
 
       {/* Hint */}
-      {field.hint && !isEditing && !localValue && (
+      {field.hint && !isEditing && !localValue && !aiProposal && (
         <Text style={{ color: colors.muted, fontSize: 11, marginTop: 3, fontStyle: "italic" }}>
           💡 {field.hint}
         </Text>
       )}
 
-      {/* AI tip */}
-      {aiTip && (
+      {/* AI tip (shown after accepting) */}
+      {aiTip && !aiProposal && (
         <View style={{ flexDirection: "row", alignItems: "flex-start", marginTop: 4, backgroundColor: "#FFF3E0", borderRadius: 8, padding: 8, gap: 6 }}>
-          <Text style={{ fontSize: 12 }}>✨</Text>
+          <Text style={{ fontSize: 12 }}>💡</Text>
           <Text style={{ color: "#E07B1A", fontSize: 11, flex: 1, lineHeight: 16 }}>{aiTip}</Text>
           <Pressable onPress={() => setAiTip(null)}>
             <Text style={{ color: "#E07B1A", fontSize: 14 }}>✕</Text>

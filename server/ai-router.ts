@@ -376,7 +376,25 @@ export const aiRouter = router({
           }
         }
       }
-      const systemPrompt = [
+      const hasUserText = !!(input.currentValue && input.currentValue.trim().length > 5);
+
+      const systemPrompt = hasUserText ? [
+        'Jestes ekspertem od pisania wygrywajacych wnioskow o dofinansowanie NGO w Polsce.',
+        'Uzytkownik napisal tekst wlasnymi slowami. Twoim zadaniem jest PRZEPISAC go profesjonalnie,',
+        'tak zeby komisja grantowa dala jak najwyzsza ocene.',
+        'Zachowaj sens i intencje uzytkownika, ale uzyj jezyka wnioskow grantowych:',
+        '- Konkretne liczby, daty, wskazniki',
+        '- Jezyk SMART (Specific, Measurable, Achievable, Relevant, Time-bound)',
+        '- Profesjonalna terminologia NGO',
+        '- Unikaj ogolnikow, dodaj konkrety',
+        '',
+        'Odpowiedz WYLACZNIE w formacie JSON (bez markdown, bez backticks):',
+        '{',
+        '  "value": "przepisany profesjonalny tekst",',
+        '  "changes": ["co zmieniono i dlaczego (max 3 punkty)"],',
+        '  "tip": "jedna wskazowka jak jeszcze bardziej wzmocnic ten fragment"',
+        '}',
+      ].join('\n') : [
         'Jestes ekspertem od pisania wygrywajacych wnioskow o dofinansowanie NGO w Polsce.',
         'Twoje zadanie: wygenerowac konkretna, profesjonalna tresc dla jednego pola wniosku.',
         'Pisz po polsku. Badz konkretny, uzyj liczb i dat jesli to mozliwe.',
@@ -385,10 +403,21 @@ export const aiRouter = router({
         'Odpowiedz WYLACZNIE w formacie JSON (bez markdown, bez backticks):',
         '{',
         '  "value": "wygenerowana tresc pola",',
+        '  "changes": [],',
         '  "tip": "krotka wskazowka jak wzmocnic to pole (1 zdanie)"',
         '}',
       ].join('\n');
-      const userMsg = [
+
+      const userMsg = hasUserText ? [
+        'Kontekst projektu:',
+        contextLines.join('\n') || 'brak kontekstu',
+        '',
+        'Pole wniosku: ' + input.fieldLabel,
+        'Krok: ' + input.stepTitle,
+        '',
+        'Tekst uzytkownika do przepisania:',
+        input.currentValue,
+      ].filter(Boolean).join('\n') : [
         'Kontekst projektu:',
         contextLines.join('\n') || 'brak kontekstu',
         '',
@@ -396,18 +425,19 @@ export const aiRouter = router({
         'Krok wniosku: ' + input.stepTitle,
         input.hint ? 'Wskazowka: ' + input.hint : '',
         input.placeholder ? 'Przykladowa tresc: ' + input.placeholder : '',
-        input.currentValue ? 'Aktualna tresc (popraw/rozwin): ' + input.currentValue : '',
       ].filter(Boolean).join('\n');
+
       const response = await invokeLLM({
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userMsg },
         ],
         response_format: { type: 'json_object' },
-        maxTokens: 800,
+        maxTokens: 1000,
       });
       const content = response.choices[0].message.content as string;
-      return JSON.parse(content) as { value: string; tip: string };
+      const parsed = JSON.parse(content) as { value: string; changes?: string[]; tip: string };
+      return { value: parsed.value, changes: parsed.changes ?? [], tip: parsed.tip, isRewrite: hasUserText };
     }),
 
   // ─── 7. GENERATE FULL APPLICATION DOCUMENT ─────────────────────────────────────────
