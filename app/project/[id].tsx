@@ -15,6 +15,7 @@ import {
   updateConsultantNotes,
   getProjectProgress,
   deleteProject,
+  saveGeneratedDocument,
 } from "@/lib/supabase-storage";
 import {
   GrantProject,
@@ -186,7 +187,7 @@ export default function ProjectScreen() {
   const [expandedStep, setExpandedStep] = useState<string | null>(null);
   const [notesText, setNotesText] = useState("");
   const [notesSaved, setNotesSaved] = useState(true);
-  const [generatedDoc, setGeneratedDoc] = useState<{ title: string; sections: { heading: string; content: string }[]; summary: string } | null>(null);
+  const [generatedDoc, setGeneratedDoc] = useState<{ title: string; sections: { heading: string; content: string }[]; summary: string; generatedAt: string } | null>(null);
   const [showDoc, setShowDoc] = useState(false);
   const pendingSavesRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const generateMutation = trpc.ai.generateFullApplication.useMutation();
@@ -200,6 +201,11 @@ export default function ProjectScreen() {
           if (p && expandedStep === null) {
             const firstActive = WIZARD_STEPS.find((s) => p.stepStatuses[s.id] !== "done");
             setExpandedStep(firstActive?.id ?? WIZARD_STEPS[0]?.id ?? null);
+          }
+          // Restore previously generated document
+          if (p?.generatedDocument) {
+            setGeneratedDoc(p.generatedDocument);
+            setShowDoc(true);
           }
         });
       }
@@ -282,8 +288,12 @@ export default function ProjectScreen() {
         submissionDeadline: project.submissionDeadline || undefined,
         stepData: project.stepData,
       });
-      setGeneratedDoc(result);
+      const docWithDate = { ...result, generatedAt: new Date().toISOString() };
+      setGeneratedDoc(docWithDate);
       setShowDoc(true);
+      // Save to project so it persists
+      await saveGeneratedDocument(project.id, docWithDate);
+      setProject({ ...project, generatedDocument: docWithDate });
     } catch (e) {
       Alert.alert("Błąd", "Nie udało się wygenerować wniosku. Spróbuj ponownie.");
     }
@@ -512,7 +522,7 @@ export default function ProjectScreen() {
                 <Text style={{ fontSize: 18 }}>✨</Text>
               )}
               <Text style={{ color: "#fff", fontSize: 16, fontWeight: "800" }}>
-                {generateMutation.isPending ? "AI generuje wniosek..." : "Wygeneruj pełny wniosek"}
+                {generateMutation.isPending ? "AI generuje wniosek..." : project?.generatedDocument ? "Wygeneruj ponownie" : "Wygeneruj pełny wniosek"}
               </Text>
             </Pressable>
             <Text style={{ color: colors.muted, fontSize: 11, textAlign: "center", marginTop: 6 }}>
@@ -523,12 +533,17 @@ export default function ProjectScreen() {
           {/* Generated Document */}
           {showDoc && generatedDoc && (
             <View style={{ marginHorizontal: 16, marginTop: 8, backgroundColor: colors.surface, borderRadius: 14, padding: 16, borderWidth: 2, borderColor: "#E07B1A" }}>
-              <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 4 }}>
                 <Text style={{ color: "#E07B1A", fontSize: 14, fontWeight: "800", flex: 1 }}>✨ WYGENEROWANY WNIOSEK</Text>
                 <Pressable onPress={() => setShowDoc(false)}>
                   <Text style={{ color: colors.muted, fontSize: 18 }}>✕</Text>
                 </Pressable>
               </View>
+              {generatedDoc.generatedAt && (
+                <Text style={{ color: colors.muted, fontSize: 11, marginBottom: 12 }}>
+                  Wygenerowano: {new Date(generatedDoc.generatedAt).toLocaleString("pl-PL")}
+                </Text>
+              )}
               {/* Summary */}
               <View style={{ backgroundColor: "#FFF3E0", borderRadius: 10, padding: 12, marginBottom: 14 }}>
                 <Text style={{ color: "#E07B1A", fontSize: 12, fontWeight: "700", marginBottom: 4 }}>PODSUMOWANIE</Text>

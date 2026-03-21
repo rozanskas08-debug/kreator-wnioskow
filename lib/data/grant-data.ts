@@ -206,6 +206,13 @@ export interface GrantProject {
   checklistItems: Record<string, boolean>;
   // Notes
   consultantNotes: string;
+  // Generated application document (saved after AI generation)
+  generatedDocument?: {
+    title: string;
+    sections: { heading: string; content: string }[];
+    summary: string;
+    generatedAt: string;
+  } | null;
 }
 
 // ─── 33-POINT CONTROL CHECKLIST ──────────────────────────────

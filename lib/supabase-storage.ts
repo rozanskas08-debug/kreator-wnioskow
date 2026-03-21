@@ -57,6 +57,7 @@ function projectToRow(project: GrantProject): Record<string, unknown> {
     gantt_activities: project.ganttActivities,
     checklist_items: project.checklistItems,
     consultant_notes: project.consultantNotes,
+    generated_document: project.generatedDocument ?? null,
     created_at: project.createdAt,
     updated_at: project.updatedAt,
   };
@@ -82,6 +83,7 @@ function rowToProject(row: Record<string, unknown>): GrantProject {
     ganttActivities: (row.gantt_activities as import('./data/grant-data').GanttActivity[]) ?? [],
     checklistItems: (row.checklist_items as Record<string, boolean>) ?? buildDefaultChecklistItems(),
     consultantNotes: (row.consultant_notes as string) ?? '',
+    generatedDocument: (row.generated_document as import('./data/grant-data').GrantProject['generatedDocument']) ?? null,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   };
@@ -286,6 +288,15 @@ export async function updateConsultantNotes(projectId: string, notes: string): P
   const project = await getProjectById(projectId);
   if (!project) return;
   await saveProject({ ...project, consultantNotes: notes });
+}
+
+export async function saveGeneratedDocument(
+  projectId: string,
+  doc: { title: string; sections: { heading: string; content: string }[]; summary: string; generatedAt: string },
+): Promise<void> {
+  const project = await getProjectById(projectId);
+  if (!project) return;
+  await saveProject({ ...project, generatedDocument: doc });
 }
 
 // ─── PROGRESS HELPERS ────────────────────────────────────────
