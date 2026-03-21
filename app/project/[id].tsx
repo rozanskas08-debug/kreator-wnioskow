@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { ScrollView, Text, View, Pressable, TextInput, Alert, Platform, ActivityIndicator, KeyboardAvoidingView } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
@@ -186,7 +186,10 @@ export default function ProjectScreen() {
   const [expandedStep, setExpandedStep] = useState<string | null>(null);
   const [notesText, setNotesText] = useState("");
   const [notesSaved, setNotesSaved] = useState(true);
-  const pendingSavesRef = { current: {} as Record<string, ReturnType<typeof setTimeout>> };
+  const [generatedDoc, setGeneratedDoc] = useState<{ title: string; sections: { heading: string; content: string }[]; summary: string } | null>(null);
+  const [showDoc, setShowDoc] = useState(false);
+  const pendingSavesRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const generateMutation = trpc.ai.generateFullApplication.useMutation();
 
   useFocusEffect(
     useCallback(() => {
@@ -238,12 +241,52 @@ export default function ProjectScreen() {
     pendingSavesRef.current[key] = setTimeout(() => {
       updateStepData(project.id, stepId, newStepData[stepId]);
     }, 800);
+
+    // Auto-update step status based on filled required fields
+    const wizardStep = WIZARD_STEPS.find((s) => s.id === stepId);
+    if (wizardStep) {
+      const requiredFields = wizardStep.fields.filter((f) => f.required);
+      const filledRequired = requiredFields.filter((f) => newStepData[stepId]?.[f.id]?.trim());
+      const currentStepStatus = updatedProject.stepStatuses[stepId] ?? "not_started";
+      let newStepStatus: StepStatus = currentStepStatus;
+      if (filledRequired.length === requiredFields.length && requiredFields.length > 0) {
+        newStepStatus = "done";
+      } else if (filledRequired.length > 0 || Object.values(newStepData[stepId] ?? {}).some((v) => v?.trim())) {
+        newStepStatus = "in_progress";
+      }
+      if (newStepStatus !== currentStepStatus) {
+        const newStatuses = { ...updatedProject.stepStatuses, [stepId]: newStepStatus };
+        setProject({ ...updatedProject, stepStatuses: newStatuses });
+        updateStepStatus(project.id, stepId, newStepStatus);
+      }
+    }
   };
 
   const saveNotes = async () => {
     if (!project) return;
     await updateConsultantNotes(project.id, notesText);
     setNotesSaved(true);
+  };
+
+  const handleGenerate = async () => {
+    if (!project) return;
+    haptic();
+    try {
+      const result = await generateMutation.mutateAsync({
+        projectTitle: project.title,
+        applicantName: project.applicantName,
+        competitionName: project.competitionName || undefined,
+        fundingSource: project.fundingSource || undefined,
+        requestedAmount: project.requestedAmount || undefined,
+        ownContribution: project.ownContribution || undefined,
+        submissionDeadline: project.submissionDeadline || undefined,
+        stepData: project.stepData,
+      });
+      setGeneratedDoc(result);
+      setShowDoc(true);
+    } catch (e) {
+      Alert.alert("Błąd", "Nie udało się wygenerować wniosku. Spróbuj ponownie.");
+    }
   };
 
   const handleDelete = () => {
@@ -446,6 +489,69 @@ export default function ProjectScreen() {
               );
             })}
           </View>
+
+          {/* Generate Application Button */}
+          <View style={{ marginHorizontal: 16, marginTop: 16, marginBottom: 8 }}>
+            <Pressable
+              onPress={handleGenerate}
+              disabled={generateMutation.isPending}
+              style={({ pressed }) => ({
+                backgroundColor: generateMutation.isPending ? "#ccc" : "#E07B1A",
+                borderRadius: 14,
+                padding: 16,
+                alignItems: "center",
+                flexDirection: "row",
+                justifyContent: "center",
+                gap: 10,
+                opacity: pressed ? 0.85 : 1,
+              })}
+            >
+              {generateMutation.isPending ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={{ fontSize: 18 }}>✨</Text>
+              )}
+              <Text style={{ color: "#fff", fontSize: 16, fontWeight: "800" }}>
+                {generateMutation.isPending ? "AI generuje wniosek..." : "Wygeneruj pełny wniosek"}
+              </Text>
+            </Pressable>
+            <Text style={{ color: colors.muted, fontSize: 11, textAlign: "center", marginTop: 6 }}>
+              AI stworzy profesjonalny tekst wniosku na podstawie wypełnionych pól
+            </Text>
+          </View>
+
+          {/* Generated Document */}
+          {showDoc && generatedDoc && (
+            <View style={{ marginHorizontal: 16, marginTop: 8, backgroundColor: colors.surface, borderRadius: 14, padding: 16, borderWidth: 2, borderColor: "#E07B1A" }}>
+              <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
+                <Text style={{ color: "#E07B1A", fontSize: 14, fontWeight: "800", flex: 1 }}>✨ WYGENEROWANY WNIOSEK</Text>
+                <Pressable onPress={() => setShowDoc(false)}>
+                  <Text style={{ color: colors.muted, fontSize: 18 }}>✕</Text>
+                </Pressable>
+              </View>
+              {/* Summary */}
+              <View style={{ backgroundColor: "#FFF3E0", borderRadius: 10, padding: 12, marginBottom: 14 }}>
+                <Text style={{ color: "#E07B1A", fontSize: 12, fontWeight: "700", marginBottom: 4 }}>PODSUMOWANIE</Text>
+                <Text style={{ color: colors.foreground, fontSize: 13, lineHeight: 20 }}>{generatedDoc.summary}</Text>
+              </View>
+              {/* Sections */}
+              {generatedDoc.sections.map((section, idx) => (
+                <View key={idx} style={{ marginBottom: 14 }}>
+                  <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: "700", marginBottom: 6 }}>{section.heading}</Text>
+                  <Text style={{ color: colors.foreground, fontSize: 13, lineHeight: 22 }}>{section.content}</Text>
+                </View>
+              ))}
+              <Pressable
+                onPress={() => {
+                  const fullText = generatedDoc.sections.map((s) => s.heading + "\n" + s.content).join("\n\n");
+                  Alert.alert("Skopiuj wniosek", "Zaznacz i skopiuj tekst wniosku z ekranu.");
+                }}
+                style={{ backgroundColor: "#E07B1A", borderRadius: 10, padding: 12, alignItems: "center", marginTop: 8 }}
+              >
+                <Text style={{ color: "#fff", fontWeight: "700" }}>📋 Skopiuj tekst wniosku</Text>
+              </Pressable>
+            </View>
+          )}
 
           {/* Consultant notes */}
           <View style={{ marginHorizontal: 16, marginTop: 8, backgroundColor: colors.surface, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: colors.border }}>

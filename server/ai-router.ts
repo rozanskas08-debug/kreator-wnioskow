@@ -410,7 +410,72 @@ export const aiRouter = router({
       return JSON.parse(content) as { value: string; tip: string };
     }),
 
-  // ─── 7. GET REVIEW HISTORY ───────────────────────────────────────────────────────────────────────────────────
+  // ─── 7. GENERATE FULL APPLICATION DOCUMENT ─────────────────────────────────────────
+  generateFullApplication: publicProcedure
+    .input(z.object({
+      projectTitle: z.string(),
+      applicantName: z.string(),
+      competitionName: z.string().optional(),
+      fundingSource: z.string().optional(),
+      requestedAmount: z.number().optional(),
+      ownContribution: z.number().optional(),
+      submissionDeadline: z.string().optional(),
+      stepData: z.record(z.string(), z.record(z.string(), z.string())),
+    }))
+    .mutation(async ({ input }) => {
+      const allFields: string[] = [];
+      for (const [stepId, fields] of Object.entries(input.stepData)) {
+        for (const [fieldId, value] of Object.entries(fields)) {
+          if (value && value.trim()) {
+            allFields.push(fieldId + ': ' + value);
+          }
+        }
+      }
+      const systemPrompt = [
+        'Jestes ekspertem od pisania wygrywajacych wnioskow o dofinansowanie NGO w Polsce.',
+        'Twoje zadanie: na podstawie danych projektu wygenerowac PELNY, PROFESJONALNY tekst wniosku o dofinansowanie.',
+        'Pisz po polsku. Uzywaj formalnego, profesjonalnego jezyka. Bądź konkretny, uzywaj liczb i dat.',
+        'Struktura dokumentu: podziel na sekcje z naglowkami. Kazda sekcja powinna byc wyczerpujaca.',
+        '',
+        'Odpowiedz WYLACZNIE w formacie JSON (bez markdown, bez backticks):',
+        '{',
+        '  "title": "tytul dokumentu",',
+        '  "sections": [',
+        '    {',
+        '      "heading": "naglowek sekcji",',
+        '      "content": "tresc sekcji (wieloakapitowa, profesjonalna)"',
+        '    }',
+        '  ],',
+        '  "summary": "krotkie podsumowanie wniosku (3-4 zdania)"',
+        '}',
+      ].join('\n');
+      const userMsg = [
+        'Wygeneruj pelny wniosek o dofinansowanie na podstawie ponizszych danych:',
+        '',
+        'TYTUL PROJEKTU: ' + input.projectTitle,
+        'WNIOSKODAWCA: ' + input.applicantName,
+        'KONKURS: ' + (input.competitionName || 'nieokreslony'),
+        'ZRODLO FINANSOWANIA: ' + (input.fundingSource || 'nieokreslone'),
+        'WNIOSKOWANA KWOTA: ' + (input.requestedAmount ? input.requestedAmount + ' zl' : 'nieokreslona'),
+        'WKLAD WLASNY: ' + (input.ownContribution ? input.ownContribution + ' zl' : 'brak'),
+        'TERMIN ZLOZENIA: ' + (input.submissionDeadline || 'nieokreslony'),
+        '',
+        'DANE Z FORMULARZA:',
+        allFields.join('\n'),
+      ].join('\n');
+      const response = await invokeLLM({
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userMsg },
+        ],
+        response_format: { type: 'json_object' },
+        maxTokens: 4000,
+      });
+      const content = response.choices[0].message.content as string;
+      return JSON.parse(content) as { title: string; sections: { heading: string; content: string }[]; summary: string };
+    }),
+
+  // ─── 8. GET REVIEW HISTORY ───────────────────────────────────────────────────────────────────────────────────
   getReviewHistory: publicProcedure
     .input(z.object({
       projectId: z.string().optional(),
