@@ -500,8 +500,31 @@ export default function ProjectScreen() {
             })}
           </View>
 
+          {/* Scan Competition Button */}
+          <View style={{ marginHorizontal: 16, marginTop: 16 }}>
+            <Pressable
+              onPress={() => router.push({ pathname: "/scan-competition" as any, params: { projectId: project.id } })}
+              style={({ pressed }) => ({
+                backgroundColor: "#1E3A5F",
+                borderRadius: 14,
+                padding: 14,
+                alignItems: "center",
+                flexDirection: "row",
+                justifyContent: "center",
+                gap: 10,
+                opacity: pressed ? 0.85 : 1,
+              })}
+            >
+              <Text style={{ fontSize: 18 }}>📸</Text>
+              <Text style={{ color: "#fff", fontSize: 15, fontWeight: "700" }}>Skanuj stronę konkursu</Text>
+            </Pressable>
+            <Text style={{ color: colors.muted, fontSize: 11, textAlign: "center", marginTop: 4, marginBottom: 12 }}>
+              Zrób screenshot ogłoszenia — AI wypełni pola automatycznie
+            </Text>
+          </View>
+
           {/* Generate Application Button */}
-          <View style={{ marginHorizontal: 16, marginTop: 16, marginBottom: 8 }}>
+          <View style={{ marginHorizontal: 16, marginTop: 0, marginBottom: 8 }}>
             <Pressable
               onPress={handleGenerate}
               disabled={generateMutation.isPending}

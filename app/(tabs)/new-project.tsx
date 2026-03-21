@@ -121,6 +121,18 @@ export default function NewProjectScreen() {
           >
             <Text style={{ color: "#FFFFFF", fontSize: 16, fontWeight: "800" }}>Utwórz wniosek i przejdź do kreatora</Text>
           </Pressable>
+
+          <View style={{ alignItems: "center", marginTop: 12 }}>
+            <Text style={{ color: colors.muted, fontSize: 12, marginBottom: 8 }}>lub zacznij od skanu ogłoszenia</Text>
+            <Pressable
+              onPress={() => router.push({ pathname: "/scan-competition" as any })}
+              style={({ pressed }) => ({ backgroundColor: colors.surface, borderRadius: 14, padding: 14, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 8, borderWidth: 1, borderColor: colors.border, opacity: pressed ? 0.8 : 1, width: "100%" })}
+            >
+              <Text style={{ fontSize: 18 }}>📸</Text>
+              <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: "700" }}>Skanuj stronę konkursu</Text>
+            </Pressable>
+            <Text style={{ color: colors.muted, fontSize: 11, marginTop: 4, textAlign: "center" }}>AI rozpozna wymagania i wypełni pola automatycznie</Text>
+          </View>
         </View>
       </ScrollView>
     </ScreenContainer>

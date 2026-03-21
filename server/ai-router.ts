@@ -475,7 +475,78 @@ export const aiRouter = router({
       return JSON.parse(content) as { title: string; sections: { heading: string; content: string }[]; summary: string };
     }),
 
-  // ─── 8. GET REVIEW HISTORY ───────────────────────────────────────────────────────────────────────────────────
+  // ─── 8. ANALYZE COMPETITION SCREENSHOT ─────────────────────────────────────────────────────────────────────
+  analyzeCompetitionScreenshot: publicProcedure
+    .input(z.object({
+      imageBase64: z.string(),
+      mimeType: z.string().default('image/jpeg'),
+    }))
+    .mutation(async ({ input }) => {
+      const systemPrompt = [
+        'Jestes ekspertem od analizy ogloszen o konkursach grantowych w Polsce.',
+        'Uzytkownik przeslal screenshot strony z konkursem grantowym lub PDF z regulaminem.',
+        'Twoim zadaniem jest wyekstrahowanie wszystkich kluczowych informacji z obrazu.',
+        'Odpowiedz TYLKO w formacie JSON, bez zadnych dodatkowych komentarzy.',
+        '',
+        'Zwroc obiekt JSON z nastepujacymi polami (jesli nie mozesz odczytac danej wartosci, uzyj null):',
+        '{',
+        '  "competitionName": "Pelna nazwa konkursu/programu grantowego",',
+        '  "fundingSource": "Nazwa organizatora/instytucji finansujacej",',
+        '  "submissionDeadline": "Termin skladania wnioskow w formacie YYYY-MM-DD lub null",',
+        '  "maxAmount": numer lub null,',
+        '  "minAmount": numer lub null,',
+        '  "ownContributionPct": numer lub null,',
+        '  "projectDurationMonths": numer lub null,',
+        '  "eligibleApplicants": "Kto moze skladac wnioski",',
+        '  "projectScope": "Obszar tematyczny/cel programu",',
+        '  "requiredFields": ["lista wymaganych elementow wniosku"],',
+        '  "importantNotes": "Wazne uwagi, ograniczenia, wymagania formalne",',
+        '  "projectTitle": "Proponowany tytul projektu pasujacy do tematyki konkursu lub null"',
+        '}',
+      ].join('\n');
+
+      const response = await invokeLLM({
+        messages: [
+          { role: 'system', content: systemPrompt },
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'image_url' as const,
+                image_url: {
+                  url: `data:${input.mimeType};base64,${input.imageBase64}`,
+                  detail: 'high' as const,
+                },
+              },
+              {
+                type: 'text' as const,
+                text: 'Przeanalizuj ten screenshot strony konkursu grantowego i wyekstrahuj wszystkie kluczowe informacje. Odpowiedz tylko w formacie JSON.',
+              },
+            ],
+          },
+        ],
+        response_format: { type: 'json_object' },
+        maxTokens: 2000,
+      });
+
+      const content = response.choices[0].message.content as string;
+      return JSON.parse(content) as {
+        competitionName: string | null;
+        fundingSource: string | null;
+        submissionDeadline: string | null;
+        maxAmount: number | null;
+        minAmount: number | null;
+        ownContributionPct: number | null;
+        projectDurationMonths: number | null;
+        eligibleApplicants: string | null;
+        projectScope: string | null;
+        requiredFields: string[];
+        importantNotes: string | null;
+        projectTitle: string | null;
+      };
+    }),
+
+  // ─── 9. GET REVIEW HISTORY ───────────────────────────────────────────────────────────────────────────────────
   getReviewHistory: publicProcedure
     .input(z.object({
       projectId: z.string().optional(),
