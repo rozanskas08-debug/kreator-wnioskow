@@ -3,253 +3,367 @@ import { ScrollView, Text, View, Pressable, TextInput, Alert, Platform } from "r
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import * as Haptics from "expo-haptics";
-
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
-import { getProjectById, saveProject, getStepCompletion } from "@/lib/client-storage";
-import type { ClientProject, ClientStep, ClientDocument, DocumentStatus } from "@/lib/data/client-types";
+import {
+  getProjectById,
+  updateProjectStatus,
+  updateStepStatus,
+  updateConsultantNotes,
+  getProjectProgress,
+  deleteProject,
+} from "@/lib/supabase-storage";
+import {
+  GrantProject,
+  ProjectStatus,
+  StepStatus,
+  WIZARD_STEPS,
+  PROJECT_STATUS_CONFIG,
+  STEP_STATUS_CONFIG,
+} from "@/lib/data/grant-data";
 
 function haptic() {
   if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 }
 
-const DOC_STATUS_CONFIG: Record<DocumentStatus, { label: string; color: string; bg: string; icon: string }> = {
-  pending: { label: "Oczekuje", color: "#6B7280", bg: "#F3F4F6", icon: "circle" },
-  received: { label: "Otrzymano", color: "#1A5FA8", bg: "#E8F0FB", icon: "clock.fill" },
-  needs_correction: { label: "Do poprawy", color: "#E07B1A", bg: "#FEF3E8", icon: "exclamationmark.triangle.fill" },
-  approved: { label: "Zaakceptowano", color: "#22A45D", bg: "#ECFDF5", icon: "checkmark.circle.fill" },
-};
-
-const STATUS_CYCLE: DocumentStatus[] = ["pending", "received", "needs_correction", "approved"];
-
-function DocRow({ doc, onCycle, onNote }: { doc: ClientDocument; onCycle: () => void; onNote: () => void }) {
-  const colors = useColors();
-  const cfg = DOC_STATUS_CONFIG[doc.status];
-  return (
-    <View style={{ flexDirection: "row", alignItems: "flex-start", paddingVertical: 10, borderBottomWidth: 0.5, borderBottomColor: colors.border }}>
-      <Pressable onPress={onCycle} style={{ marginRight: 10, marginTop: 2 }}>
-        <View style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: cfg.bg, alignItems: "center", justifyContent: "center" }}>
-          <IconSymbol name={cfg.icon as any} size={14} color={cfg.color} />
-        </View>
-      </Pressable>
-      <View style={{ flex: 1 }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-          <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: "600", flex: 1 }}>{doc.label}</Text>
-          {doc.required && (
-            <View style={{ backgroundColor: "#FEF3E8", borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 }}>
-              <Text style={{ color: "#E07B1A", fontSize: 9, fontWeight: "700" }}>WYM.</Text>
-            </View>
-          )}
-        </View>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 }}>
-          <View style={{ backgroundColor: cfg.bg, borderRadius: 5, paddingHorizontal: 6, paddingVertical: 2 }}>
-            <Text style={{ color: cfg.color, fontSize: 10, fontWeight: "700" }}>{cfg.label}</Text>
-          </View>
-          {doc.note ? (
-            <Text style={{ color: colors.muted, fontSize: 11, flex: 1 }} numberOfLines={1}>📝 {doc.note}</Text>
-          ) : null}
-        </View>
-      </View>
-      <Pressable onPress={onNote} style={{ padding: 6 }}>
-        <IconSymbol name="pencil" size={14} color={colors.muted} />
-      </Pressable>
-    </View>
-  );
-}
+const STATUS_CYCLE: ProjectStatus[] = ["draft", "in_progress", "review", "submitted", "approved", "rejected"];
+const STEP_STATUS_CYCLE: StepStatus[] = ["not_started", "in_progress", "done"];
+const STEP_COLORS = ["#1E3A5F", "#7C3AED", "#D97706", "#059669", "#1E3A5F", "#DC2626"];
 
 export default function ProjectScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
   const router = useRouter();
-  const [project, setProject] = useState<ClientProject | null>(null);
+  const [project, setProject] = useState<GrantProject | null>(null);
   const [expandedStep, setExpandedStep] = useState<string | null>(null);
-  const [noteModal, setNoteModal] = useState<{ stepId: string; docId: string; current: string } | null>(null);
-  const [noteText, setNoteText] = useState("");
+  const [notesText, setNotesText] = useState("");
+  const [notesSaved, setNotesSaved] = useState(true);
 
   useFocusEffect(
     useCallback(() => {
-      if (id) getProjectById(id).then((p) => {
-        setProject(p);
-        if (p && expandedStep === null) setExpandedStep(p.steps[p.currentStep]?.id ?? p.steps[0]?.id ?? null);
-      });
+      if (id) {
+        getProjectById(id).then((p) => {
+          setProject(p);
+          setNotesText(p?.consultantNotes ?? "");
+          if (p && expandedStep === null) {
+            const firstActive = WIZARD_STEPS.find((s) => p.stepStatuses[s.id] !== "done");
+            setExpandedStep(firstActive?.id ?? WIZARD_STEPS[0]?.id ?? null);
+          }
+        });
+      }
     }, [id]),
   );
 
-  const cycleDocStatus = async (stepId: string, docId: string) => {
+  const cycleProjectStatus = async () => {
     if (!project) return;
     haptic();
-    const step = project.steps.find((s) => s.id === stepId)!;
-    const doc = step.documents.find((d) => d.id === docId)!;
-    const nextStatus = STATUS_CYCLE[(STATUS_CYCLE.indexOf(doc.status) + 1) % STATUS_CYCLE.length];
-    doc.status = nextStatus;
-    doc.updatedAt = new Date().toISOString();
-    const allRequired = step.documents.filter((d) => d.required);
-    const allRequiredApproved = allRequired.every((d) => d.status === "approved");
-    const anyProgress = step.documents.some((d) => d.status !== "pending");
-    step.status = allRequiredApproved && allRequired.length > 0 ? "done" : anyProgress ? "in_progress" : "not_started";
-    const firstIncomplete = project.steps.findIndex((s) => s.status !== "done");
-    project.currentStep = firstIncomplete >= 0 ? firstIncomplete : project.steps.length - 1;
-    await saveProject(project);
-    setProject({ ...project });
+    const currentIdx = STATUS_CYCLE.indexOf(project.status);
+    const nextStatus = STATUS_CYCLE[(currentIdx + 1) % STATUS_CYCLE.length];
+    await updateProjectStatus(project.id, nextStatus);
+    setProject({ ...project, status: nextStatus });
   };
 
-  const openNoteModal = (stepId: string, docId: string, current: string) => {
+  const cycleStepStatus = async (stepId: string) => {
+    if (!project) return;
     haptic();
-    setNoteModal({ stepId, docId, current });
-    setNoteText(current);
+    const current = project.stepStatuses[stepId] ?? "not_started";
+    const currentIdx = STEP_STATUS_CYCLE.indexOf(current);
+    const nextStatus = STEP_STATUS_CYCLE[(currentIdx + 1) % STEP_STATUS_CYCLE.length];
+    const newStatuses = { ...project.stepStatuses, [stepId]: nextStatus };
+    await updateStepStatus(project.id, stepId, nextStatus);
+    setProject({ ...project, stepStatuses: newStatuses });
   };
 
-  const saveNote = async () => {
-    if (!project || !noteModal) return;
-    const step = project.steps.find((s) => s.id === noteModal.stepId)!;
-    const doc = step.documents.find((d) => d.id === noteModal.docId)!;
-    doc.note = noteText;
-    await saveProject(project);
-    setProject({ ...project });
-    setNoteModal(null);
+  const saveNotes = async () => {
+    if (!project) return;
+    await updateConsultantNotes(project.id, notesText);
+    setNotesSaved(true);
+  };
+
+  const handleDelete = () => {
+    Alert.alert(
+      "Usu\u0144 projekt",
+      `Czy na pewno chcesz usun\u0105\u0107 "${project?.title}"? Tej operacji nie mo\u017cna cofn\u0105\u0107.`,
+      [
+        { text: "Anuluj", style: "cancel" },
+        {
+          text: "Usu\u0144",
+          style: "destructive",
+          onPress: async () => {
+            if (!project) return;
+            await deleteProject(project.id);
+            router.back();
+          },
+        },
+      ],
+    );
   };
 
   if (!project) {
     return (
       <ScreenContainer>
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-          <Text style={{ color: colors.muted }}>Ładowanie...</Text>
+          <Text style={{ color: colors.muted, fontSize: 16 }}>
+            \u0141adowanie projektu...
+          </Text>
         </View>
       </ScreenContainer>
     );
   }
 
-  const STEP_COLORS = ["#8B5CF6", "#E07B1A", "#1A5FA8", "#22A45D", "#E11D48"];
+  const statusCfg = PROJECT_STATUS_CONFIG[project.status];
+  const progress = getProjectProgress(project);
 
   return (
     <ScreenContainer>
+      {/* Header */}
       <View style={{ backgroundColor: "#E07B1A", paddingTop: 16, paddingBottom: 24, paddingHorizontal: 20 }}>
         <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 14 }}>
           <Pressable onPress={() => router.back()} style={{ marginRight: 12, padding: 4 }}>
             <IconSymbol name="chevron.left" size={22} color="#fff" />
           </Pressable>
-          <View style={{ flex: 1 }}>
-            <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 11, fontWeight: "600" }}>Projekt klienta</Text>
-            <Text style={{ color: "#fff", fontSize: 17, fontWeight: "800" }} numberOfLines={1}>{project.foundationName}</Text>
-          </View>
-          <Pressable
-            onPress={() => router.push({ pathname: "/statute-writer", params: { projectId: project.id } })}
-            style={({ pressed }) => ({ backgroundColor: "rgba(255,255,255,0.2)", borderRadius: 10, paddingHorizontal: 12, paddingVertical: 7, opacity: pressed ? 0.7 : 1 })}
-          >
-            <Text style={{ color: "#fff", fontSize: 12, fontWeight: "700" }}>✍️ Statut</Text>
+          <Text style={{ color: "#fff", fontSize: 11, fontWeight: "700", opacity: 0.8, flex: 1 }}>
+            WNIOSEK GRANTOWY
+          </Text>
+          <Pressable onPress={handleDelete} style={{ padding: 4 }}>
+            <IconSymbol name="trash.fill" size={18} color="#fff" />
           </Pressable>
         </View>
-        <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 13 }}>
-          Klient: {project.clientName}{project.phone ? ` · ${project.phone}` : ""}{project.email ? `\n${project.email}` : ""}
+        <Text style={{ color: "#fff", fontSize: 20, fontWeight: "800", lineHeight: 26 }}>
+          {project.title}
         </Text>
+        <Text style={{ color: "#fff", fontSize: 13, opacity: 0.85, marginTop: 4 }}>
+          {project.applicantName}
+        </Text>
+        {project.competitionName ? (
+          <Text style={{ color: "#fff", fontSize: 12, opacity: 0.7, marginTop: 2 }}>
+            {project.competitionName}
+          </Text>
+        ) : null}
+        <View style={{ flexDirection: "row", alignItems: "center", marginTop: 12, gap: 10, flexWrap: "wrap" }}>
+          <Pressable
+            onPress={cycleProjectStatus}
+            style={{ backgroundColor: statusCfg.bg, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6 }}
+          >
+            <Text style={{ color: statusCfg.color, fontSize: 12, fontWeight: "700" }}>
+              {statusCfg.label} \u2014 dotknij aby zmieni\u0107
+            </Text>
+          </Pressable>
+          {project.requestedAmount > 0 && (
+            <View style={{ backgroundColor: "rgba(255,255,255,0.2)", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6 }}>
+              <Text style={{ color: "#fff", fontSize: 12, fontWeight: "700" }}>
+                {project.requestedAmount.toLocaleString("pl-PL")} z\u0142
+              </Text>
+            </View>
+          )}
+        </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-        <View style={{ flexDirection: "row", paddingHorizontal: 16, paddingVertical: 16, gap: 6 }}>
-          {project.steps.map((step, idx) => {
-            const color = STEP_COLORS[idx] ?? "#999";
-            const isDone = step.status === "done";
-            const isActive = step.id === expandedStep;
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 40 }}>
+        {/* Progress */}
+        <View style={{ marginHorizontal: 16, marginTop: 16, marginBottom: 8 }}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
+            <Text style={{ color: colors.muted, fontSize: 12, fontWeight: "700" }}>POST\u0118P WNIOSKU</Text>
+            <Text style={{ color: colors.foreground, fontSize: 12, fontWeight: "700" }}>
+              {progress.doneSteps}/{progress.totalSteps} krok\u00f3w \u00b7 {progress.pct}%
+            </Text>
+          </View>
+          <View style={{ height: 8, backgroundColor: colors.border, borderRadius: 4 }}>
+            <View style={{ height: 8, width: `${progress.pct}%` as any, backgroundColor: "#E07B1A", borderRadius: 4 }} />
+          </View>
+        </View>
+
+        {/* Step pills */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 8, gap: 8 }}>
+          {WIZARD_STEPS.map((step, idx) => {
+            const status = project.stepStatuses[step.id] ?? "not_started";
+            const cfg = STEP_STATUS_CONFIG[status];
+            const color = STEP_COLORS[idx % STEP_COLORS.length];
+            const isActive = expandedStep === step.id;
             return (
-              <Pressable key={step.id} onPress={() => { haptic(); setExpandedStep(isActive ? null : step.id); }} style={{ flex: 1, alignItems: "center" }}>
-                <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: isDone ? color : isActive ? color + "22" : colors.border, alignItems: "center", justifyContent: "center", borderWidth: isActive ? 2 : 0, borderColor: color }}>
-                  {isDone
-                    ? <IconSymbol name="checkmark" size={14} color="#fff" />
-                    : <Text style={{ color: isActive ? color : colors.muted, fontSize: 12, fontWeight: "800" }}>{idx + 1}</Text>}
+              <Pressable
+                key={step.id}
+                onPress={() => { haptic(); setExpandedStep(isActive ? null : step.id); }}
+                style={({ pressed }) => ({
+                  flexDirection: "row",
+                  alignItems: "center",
+                  backgroundColor: isActive ? color + "22" : colors.surface,
+                  borderRadius: 20,
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderWidth: 1,
+                  borderColor: isActive ? color : colors.border,
+                  opacity: pressed ? 0.8 : 1,
+                  gap: 6,
+                })}
+              >
+                <Text style={{ fontSize: 10, fontWeight: "800", color }}>{idx + 1}</Text>
+                <Text style={{ color: colors.foreground, fontSize: 12, fontWeight: "600" }}>{step.title}</Text>
+                <View style={{ backgroundColor: cfg.color + "22", borderRadius: 6, paddingHorizontal: 5, paddingVertical: 1 }}>
+                  <Text style={{ color: cfg.color, fontSize: 9, fontWeight: "700" }}>{cfg.label}</Text>
                 </View>
               </Pressable>
             );
           })}
+        </ScrollView>
+
+        {/* Steps */}
+        <View style={{ marginTop: 8 }}>
+          {WIZARD_STEPS.map((step, idx) => {
+            const status = project.stepStatuses[step.id] ?? "not_started";
+            const cfg = STEP_STATUS_CONFIG[status];
+            const color = STEP_COLORS[idx % STEP_COLORS.length];
+            const isExpanded = expandedStep === step.id;
+            const stepData = project.stepData[step.id] ?? {};
+            const filledFields = step.fields.filter((f) => stepData[f.id]?.trim()).length;
+            const totalFields = step.fields.length;
+            const requiredFields = step.fields.filter((f) => f.required).length;
+            const filledRequired = step.fields.filter((f) => f.required && stepData[f.id]?.trim()).length;
+
+            return (
+              <View key={step.id} style={{ marginHorizontal: 16, marginBottom: 8 }}>
+                <Pressable
+                  onPress={() => { haptic(); setExpandedStep(isExpanded ? null : step.id); }}
+                  style={({ pressed }) => ({
+                    backgroundColor: colors.surface,
+                    borderRadius: 14,
+                    padding: 14,
+                    borderWidth: 1,
+                    borderColor: isExpanded ? color : colors.border,
+                    opacity: pressed ? 0.85 : 1,
+                  })}
+                >
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: color + "22", alignItems: "center", justifyContent: "center", marginRight: 12 }}>
+                      <IconSymbol name={step.icon as any} size={16} color={color} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: "700" }}>{step.title}</Text>
+                      <Text style={{ color: colors.muted, fontSize: 11, marginTop: 2 }}>
+                        {filledFields}/{totalFields} p\u00f3l \u00b7 {filledRequired}/{requiredFields} wymaganych
+                      </Text>
+                    </View>
+                    <Pressable
+                      onPress={(e) => { e.stopPropagation(); cycleStepStatus(step.id); }}
+                      style={{ marginRight: 8, backgroundColor: cfg.color + "22", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 }}
+                    >
+                      <Text style={{ color: cfg.color, fontSize: 10, fontWeight: "700" }}>{cfg.label}</Text>
+                    </Pressable>
+                    <IconSymbol name={isExpanded ? "chevron.up" : "chevron.down"} size={16} color={colors.muted} />
+                  </View>
+                  <View style={{ height: 4, backgroundColor: colors.border, borderRadius: 2, marginTop: 10 }}>
+                    <View style={{ height: 4, width: `${totalFields > 0 ? (filledFields / totalFields) * 100 : 0}%` as any, backgroundColor: color, borderRadius: 2 }} />
+                  </View>
+                </Pressable>
+
+                {isExpanded && (
+                  <View style={{ backgroundColor: colors.surface, borderRadius: 14, marginTop: 4, padding: 14, borderWidth: 1, borderColor: color }}>
+                    {step.fields.map((field) => {
+                      const val = stepData[field.id];
+                      return (
+                        <View key={field.id} style={{ marginBottom: 10 }}>
+                          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 2 }}>
+                            <Text style={{ color: colors.muted, fontSize: 11, fontWeight: "700", flex: 1 }}>
+                              {field.label.toUpperCase()}
+                            </Text>
+                            {field.required && (
+                              <View style={{ backgroundColor: "#FEF3E8", borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 }}>
+                                <Text style={{ color: "#E07B1A", fontSize: 9, fontWeight: "700" }}>WYM.</Text>
+                              </View>
+                            )}
+                          </View>
+                          {val ? (
+                            <Text style={{ color: colors.foreground, fontSize: 13, lineHeight: 18 }}>{val}</Text>
+                          ) : (
+                            <Text style={{ color: colors.muted, fontSize: 13, fontStyle: "italic" }}>nie wype\u0142niono</Text>
+                          )}
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
+              </View>
+            );
+          })}
         </View>
 
-        {project.steps.map((step, idx) => {
-          const color = STEP_COLORS[idx] ?? "#999";
-          const isExpanded = expandedStep === step.id;
-          const { total, approved, required, requiredApproved } = getStepCompletion(step);
-          const isDone = step.status === "done";
-
-          return (
-            <View key={step.id} style={{ marginHorizontal: 16, marginBottom: 10 }}>
-              <Pressable
-                onPress={() => { haptic(); setExpandedStep(isExpanded ? null : step.id); }}
-                style={({ pressed }) => ({ backgroundColor: colors.surface, borderRadius: 14, padding: 14, borderWidth: 1.5, borderColor: isDone ? color + "66" : colors.border, opacity: pressed ? 0.9 : 1 })}
-              >
-                <View style={{ flexDirection: "row", alignItems: "center" }}>
-                  <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: color + "22", alignItems: "center", justifyContent: "center", marginRight: 12 }}>
-                    {isDone ? <IconSymbol name="checkmark.circle.fill" size={20} color={color} /> : <Text style={{ color, fontSize: 15, fontWeight: "800" }}>{idx + 1}</Text>}
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: "700" }}>{step.title}</Text>
-                    <Text style={{ color: colors.muted, fontSize: 11, marginTop: 2 }}>{approved}/{total} dok. · {requiredApproved}/{required} wymaganych</Text>
-                  </View>
-                  <IconSymbol name={isExpanded ? "chevron.up" : "chevron.down"} size={16} color={colors.muted} />
-                </View>
-                <View style={{ height: 4, backgroundColor: colors.border, borderRadius: 2, marginTop: 10 }}>
-                  <View style={{ height: 4, width: `${total > 0 ? (approved / total) * 100 : 0}%` as any, backgroundColor: color, borderRadius: 2 }} />
-                </View>
-              </Pressable>
-
-              {isExpanded && (
-                <View style={{ backgroundColor: colors.surface, borderRadius: 14, marginTop: 4, padding: 14, borderWidth: 1, borderColor: colors.border }}>
-                  {step.documents.map((doc) => (
-                    <DocRow key={doc.id} doc={doc} onCycle={() => cycleDocStatus(step.id, doc.id)} onNote={() => openNoteModal(step.id, doc.id, doc.note)} />
-                  ))}
-                  <View style={{ marginTop: 12 }}>
-                    <Text style={{ color: colors.muted, fontSize: 11, fontWeight: "700", marginBottom: 6 }}>NOTATKA KONSULTANTA</Text>
-                    <TextInput
-                      value={step.consultantNote}
-                      onChangeText={(text) => { step.consultantNote = text; setProject({ ...project }); }}
-                      onBlur={() => saveProject(project)}
-                      placeholder="Dodaj notatkę do tego kroku..."
-                      placeholderTextColor={colors.muted}
-                      multiline
-                      style={{ backgroundColor: colors.background, borderRadius: 10, padding: 10, color: colors.foreground, fontSize: 13, borderWidth: 1, borderColor: colors.border, minHeight: 60, textAlignVertical: "top" }}
-                    />
-                  </View>
-                </View>
-              )}
-            </View>
-          );
-        })}
-
+        {/* Consultant notes */}
         <View style={{ marginHorizontal: 16, marginTop: 8, backgroundColor: colors.surface, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: colors.border }}>
-          <Text style={{ color: colors.muted, fontSize: 11, fontWeight: "700", marginBottom: 10 }}>LEGENDA — DOTKNIJ IKONĘ ABY ZMIENIĆ STATUS</Text>
-          {(Object.entries(DOC_STATUS_CONFIG) as [DocumentStatus, typeof DOC_STATUS_CONFIG[DocumentStatus]][]).map(([key, cfg]) => (
-            <View key={key} style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}>
-              <View style={{ width: 26, height: 26, borderRadius: 7, backgroundColor: cfg.bg, alignItems: "center", justifyContent: "center", marginRight: 10 }}>
-                <IconSymbol name={cfg.icon as any} size={13} color={cfg.color} />
+          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 10 }}>
+            <Text style={{ color: colors.muted, fontSize: 11, fontWeight: "700", flex: 1 }}>NOTATKI KONSULTANTA</Text>
+            {!notesSaved && (
+              <Pressable onPress={saveNotes} style={{ backgroundColor: "#E07B1A", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 }}>
+                <Text style={{ color: "#fff", fontSize: 11, fontWeight: "700" }}>Zapisz</Text>
+              </Pressable>
+            )}
+          </View>
+          <TextInput
+            value={notesText}
+            onChangeText={(text) => { setNotesText(text); setNotesSaved(false); }}
+            onBlur={saveNotes}
+            placeholder="Dodaj notatki do projektu..."
+            placeholderTextColor={colors.muted}
+            multiline
+            style={{ backgroundColor: colors.background, borderRadius: 10, padding: 10, color: colors.foreground, fontSize: 13, borderWidth: 1, borderColor: colors.border, minHeight: 80, textAlignVertical: "top" }}
+          />
+        </View>
+
+        {/* Key info */}
+        {(project.submissionDeadline || project.fundingSource || project.requestedAmount > 0) && (
+          <View style={{ marginHorizontal: 16, marginTop: 8, backgroundColor: colors.surface, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: colors.border }}>
+            <Text style={{ color: colors.muted, fontSize: 11, fontWeight: "700", marginBottom: 10 }}>INFORMACJE O PROJEKCIE</Text>
+            {project.fundingSource ? (
+              <View style={{ flexDirection: "row", marginBottom: 6 }}>
+                <Text style={{ color: colors.muted, fontSize: 12, width: 130 }}>
+                  \u0179r\u00f3d\u0142o finansowania:
+                </Text>
+                <Text style={{ color: colors.foreground, fontSize: 12, fontWeight: "600", flex: 1 }}>{project.fundingSource}</Text>
               </View>
-              <Text style={{ color: colors.foreground, fontSize: 12, fontWeight: "600" }}>{cfg.label}</Text>
-            </View>
-          ))}
+            ) : null}
+            {project.submissionDeadline ? (
+              <View style={{ flexDirection: "row", marginBottom: 6 }}>
+                <Text style={{ color: colors.muted, fontSize: 12, width: 130 }}>Termin z\u0142o\u017cenia:</Text>
+                <Text style={{ color: colors.foreground, fontSize: 12, fontWeight: "600", flex: 1 }}>
+                  {new Date(project.submissionDeadline).toLocaleDateString("pl-PL", { day: "2-digit", month: "long", year: "numeric" })}
+                </Text>
+              </View>
+            ) : null}
+            {project.requestedAmount > 0 ? (
+              <View style={{ flexDirection: "row", marginBottom: 6 }}>
+                <Text style={{ color: colors.muted, fontSize: 12, width: 130 }}>Kwota dotacji:</Text>
+                <Text style={{ color: colors.foreground, fontSize: 12, fontWeight: "600", flex: 1 }}>{project.requestedAmount.toLocaleString("pl-PL")} z\u0142</Text>
+              </View>
+            ) : null}
+            {project.ownContribution > 0 ? (
+              <View style={{ flexDirection: "row" }}>
+                <Text style={{ color: colors.muted, fontSize: 12, width: 130 }}>Wk\u0142ad w\u0142asny:</Text>
+                <Text style={{ color: colors.foreground, fontSize: 12, fontWeight: "600", flex: 1 }}>{project.ownContribution.toLocaleString("pl-PL")} z\u0142</Text>
+              </View>
+            ) : null}
+          </View>
+        )}
+
+        {/* Edit button */}
+        <View style={{ marginHorizontal: 16, marginTop: 16 }}>
+          <Pressable
+            onPress={() => router.push({ pathname: "/guided-wizard", params: { projectId: project.id } } as any)}
+            style={({ pressed }) => ({
+              backgroundColor: "#E07B1A",
+              borderRadius: 14,
+              padding: 16,
+              alignItems: "center",
+              flexDirection: "row",
+              justifyContent: "center",
+              gap: 8,
+              opacity: pressed ? 0.85 : 1,
+            })}
+          >
+            <IconSymbol name="pencil" size={18} color="#fff" />
+            <Text style={{ color: "#fff", fontSize: 15, fontWeight: "700" }}>Edytuj wniosek</Text>
+          </Pressable>
         </View>
       </ScrollView>
-
-      {noteModal && (
-        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}>
-          <View style={{ backgroundColor: colors.background, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20 }}>
-            <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: "800", marginBottom: 12 }}>Notatka do dokumentu</Text>
-            <TextInput
-              value={noteText}
-              onChangeText={setNoteText}
-              placeholder="np. 'Klient ma dostarczyć do piątku'"
-              placeholderTextColor={colors.muted}
-              multiline
-              autoFocus
-              style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 12, color: colors.foreground, fontSize: 14, borderWidth: 1, borderColor: colors.border, minHeight: 80, textAlignVertical: "top", marginBottom: 14 }}
-            />
-            <View style={{ flexDirection: "row", gap: 10 }}>
-              <Pressable onPress={() => setNoteModal(null)} style={({ pressed }) => ({ flex: 1, backgroundColor: colors.surface, borderRadius: 12, padding: 14, alignItems: "center", borderWidth: 1, borderColor: colors.border, opacity: pressed ? 0.8 : 1 })}>
-                <Text style={{ color: colors.muted, fontWeight: "700" }}>Anuluj</Text>
-              </Pressable>
-              <Pressable onPress={saveNote} style={({ pressed }) => ({ flex: 1, backgroundColor: "#E07B1A", borderRadius: 12, padding: 14, alignItems: "center", opacity: pressed ? 0.8 : 1 })}>
-                <Text style={{ color: "#fff", fontWeight: "700" }}>Zapisz</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      )}
     </ScreenContainer>
   );
 }
