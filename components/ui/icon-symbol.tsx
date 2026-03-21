@@ -1,117 +1,115 @@
-// Fallback for using MaterialIcons on Android and web.
+// Web-compatible icon component using Unicode/emoji symbols
+// Replaces MaterialIcons (which requires a font file) with inline text/emoji
+// This ensures icons display correctly on all platforms without font loading issues
 
-import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { SymbolWeight, SymbolViewProps } from "expo-symbols";
-import { ComponentProps } from "react";
-import { OpaqueColorValue, type StyleProp, type TextStyle } from "react-native";
+import { OpaqueColorValue, Text, type StyleProp, type TextStyle } from "react-native";
 
-type IconMapping = Record<SymbolViewProps["name"], ComponentProps<typeof MaterialIcons>["name"]>;
-type IconSymbolName = keyof typeof MAPPING;
+type IconSymbolName = SymbolViewProps["name"];
 
 /**
- * Add your SF Symbols to Material Icons mappings here.
- * - see Material Icons in the [Icons Directory](https://icons.expo.fyi).
- * - see SF Symbols in the [SF Symbols](https://developer.apple.com/sf-symbols/) app.
+ * Mapping from SF Symbol names to Unicode/emoji characters.
+ * These render without any external font files.
  */
-const MAPPING = {
+const EMOJI_MAPPING: Record<string, string> = {
   // Navigation
-  "house.fill": "home",
-  "list.bullet.clipboard.fill": "assignment",
-  "book.fill": "menu-book",
-  "briefcase.fill": "work",
-  "person.fill": "person",
+  "house.fill": "🏠",
+  "list.bullet.clipboard.fill": "📋",
+  "book.fill": "📖",
+  "briefcase.fill": "💼",
+  "person.fill": "👤",
   // Actions
-  "paperplane.fill": "send",
-  "chevron.left.forwardslash.chevron.right": "code",
-  "chevron.right": "chevron-right",
-  "chevron.left": "chevron-left",
-  "chevron.down": "expand-more",
-  "chevron.up": "expand-less",
-  "xmark": "close",
-  "checkmark": "check",
-  "checkmark.circle.fill": "check-circle",
-  "checkmark.circle": "radio-button-unchecked",
-  "circle": "radio-button-unchecked",
-  "circle.fill": "circle",
+  "paperplane.fill": "✉️",
+  "chevron.left.forwardslash.chevron.right": "</>",
+  "chevron.right": "›",
+  "chevron.left": "‹",
+  "chevron.down": "▾",
+  "chevron.up": "▴",
+  "xmark": "✕",
+  "xmark.circle.fill": "✕",
+  "checkmark": "✓",
+  "checkmark.circle.fill": "✅",
+  "checkmark.circle": "○",
+  "checkmark.rectangle.fill": "☑",
+  "checkmark.seal.fill": "✅",
+  "circle": "○",
+  "circle.fill": "●",
   // Content
-  "doc.text.fill": "description",
-  "doc.fill": "insert-drive-file",
-  "folder.fill": "folder",
-  "magnifyingglass": "search",
-  "info.circle.fill": "info",
-  "info.circle": "info-outline",
-  "exclamationmark.triangle.fill": "warning",
-  "star.fill": "star",
-  "star": "star-outline",
-  "heart.fill": "favorite",
-  "arrow.right": "arrow-forward",
-  "arrow.left": "arrow-back",
-  "plus": "add",
-  "minus": "remove",
-  "trash.fill": "delete",
-  "pencil": "edit",
-  "link": "link",
-  "externaldrive.fill": "storage",
-  "clock.fill": "schedule",
-  "calendar": "calendar-today",
-  "bell.fill": "notifications",
-  "gear": "settings",
-  "lock.fill": "lock",
-  "shield.fill": "security",
-  "building.2.fill": "account-balance",
-  "person.3.fill": "group",
-  "creditcard.fill": "credit-card",
-  "checkmark.seal.fill": "verified",
-  "chart.bar.fill": "bar-chart",
-  "questionmark.circle.fill": "help",
-  "phone.fill": "phone",
-  "envelope.fill": "email",
-  // Additional icons for NGO app
-  "lightbulb.fill": "lightbulb",
-  "banknote.fill": "payments",
-  "arrow.up.right": "open-in-new",
-  "arrow.clockwise": "refresh",
-  "list.bullet": "list",
-  "doc.badge.plus": "note-add",
-  "person.badge.plus": "person-add",
-  "building.columns.fill": "account-balance",
-  "scale.3d": "balance",
-  "text.badge.checkmark": "fact-check",
-  "doc.plaintext.fill": "article",
-  "square.and.arrow.up": "share",
-  "square.and.pencil": "edit-note",
-  "chart.gantt": "view-timeline",
-  "eurosign.circle.fill": "euro",
-  "checkmark.rectangle.fill": "check-box",
-  "globe": "language",
-  "building.fill": "business",
-  "tag.fill": "label",
-  "flag.fill": "flag",
-  "arrow.up.right.circle.fill": "open-in-new",
-  "wand.and.stars": "auto-fix-high",
-  "doc.on.clipboard": "content-paste",
-  // New module icons
-  "brain": "psychology",
-  "arrow.triangle.branch": "account-tree",
-  "text.quote": "format-quote",
-  "cart.fill": "shopping-cart",
-  "arrow.counterclockwise": "replay",
-  "arrow.up.right.square": "open-in-new",
-  "chart.line.uptrend.xyaxis": "trending-up",
-  "target": "my-location",
-  "minus.circle.fill": "remove-circle",
-  "plus.circle.fill": "add-circle",
-  "sparkles": "auto-awesome",
-  "gearshape.fill": "settings",
-  "lock.open.fill": "lock-open",
-  "eye.fill": "visibility",
-  "eye.slash.fill": "visibility-off",
-} as IconMapping;
+  "doc.text.fill": "📄",
+  "doc.fill": "📄",
+  "doc.badge.plus": "📝",
+  "doc.on.doc.fill": "📑",
+  "doc.on.clipboard": "📋",
+  "doc.plaintext.fill": "📃",
+  "folder.fill": "📁",
+  "magnifyingglass": "🔍",
+  "info.circle.fill": "ℹ️",
+  "info.circle": "ℹ",
+  "exclamationmark.triangle.fill": "⚠️",
+  "star.fill": "⭐",
+  "star": "☆",
+  "heart.fill": "❤️",
+  "arrow.right": "→",
+  "arrow.left": "←",
+  "arrow.up.right": "↗",
+  "arrow.up.right.square": "↗",
+  "arrow.up.right.circle.fill": "↗",
+  "arrow.clockwise": "↻",
+  "arrow.counterclockwise": "↺",
+  "arrow.triangle.branch": "⑂",
+  "plus": "+",
+  "plus.circle.fill": "⊕",
+  "minus": "−",
+  "minus.circle.fill": "⊖",
+  "trash.fill": "🗑",
+  "pencil": "✏️",
+  "link": "🔗",
+  "externaldrive.fill": "💾",
+  "clock.fill": "🕐",
+  "calendar": "📅",
+  "bell.fill": "🔔",
+  "gear": "⚙️",
+  "gearshape.fill": "⚙️",
+  "lock.fill": "🔒",
+  "lock.open.fill": "🔓",
+  "shield.fill": "🛡",
+  "building.2.fill": "🏢",
+  "building.fill": "🏢",
+  "building.columns.fill": "🏛",
+  "person.3.fill": "👥",
+  "person.badge.plus": "👤",
+  "creditcard.fill": "💳",
+  "chart.bar.fill": "📊",
+  "chart.line.uptrend.xyaxis": "📈",
+  "chart.gantt": "📊",
+  "questionmark.circle.fill": "❓",
+  "phone.fill": "📞",
+  "envelope.fill": "✉️",
+  "lightbulb.fill": "💡",
+  "banknote.fill": "💰",
+  "tag.fill": "🏷",
+  "flag.fill": "🚩",
+  "globe": "🌐",
+  "wand.and.stars": "✨",
+  "sparkles": "✨",
+  "brain": "🧠",
+  "text.quote": "❝",
+  "cart.fill": "🛒",
+  "target": "🎯",
+  "scale.3d": "⚖",
+  "text.badge.checkmark": "✓",
+  "square.and.arrow.up": "↑",
+  "square.and.pencil": "✏️",
+  "eurosign.circle.fill": "€",
+  "eye.fill": "👁",
+  "eye.slash.fill": "🚫",
+  "list.bullet": "☰",
+};
 
 /**
- * An icon component that uses native SF Symbols on iOS, and Material Icons on Android and web.
- * This ensures a consistent look across platforms, and optimal resource usage.
- * Icon `name`s are based on SF Symbols and require manual mapping to Material Icons.
+ * An icon component that uses Unicode/emoji characters for cross-platform compatibility.
+ * Works on iOS, Android, and web without requiring external font files.
+ * Icon `name`s are based on SF Symbols naming convention.
  */
 export function IconSymbol({
   name,
@@ -125,5 +123,22 @@ export function IconSymbol({
   style?: StyleProp<TextStyle>;
   weight?: SymbolWeight;
 }) {
-  return <MaterialIcons color={color} size={size} name={MAPPING[name]} style={style} />;
+  const emoji = EMOJI_MAPPING[name as string] ?? "•";
+  return (
+    <Text
+      style={[
+        {
+          fontSize: size * 0.85,
+          color: color as string,
+          lineHeight: size,
+          textAlign: "center",
+          width: size,
+          height: size,
+        },
+        style,
+      ]}
+    >
+      {emoji}
+    </Text>
+  );
 }
