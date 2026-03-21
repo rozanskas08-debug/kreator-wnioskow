@@ -74,7 +74,9 @@ async function startServer() {
 
   // Serve Expo web build in production
   if (process.env.NODE_ENV === "production") {
-    const webDistPath = path.join(__dirname, "../../dist-web");
+    // Use process.cwd() to point to project root (works on Render and locally)
+    const webDistPath = path.join(process.cwd(), "dist-web");
+    console.log(`[static] Serving web build from: ${webDistPath}`);
     app.use(express.static(webDistPath));
     // SPA fallback - serve index.html for all non-API routes
     app.get("*", (_req, res) => {
