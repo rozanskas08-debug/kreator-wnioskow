@@ -346,7 +346,71 @@ export const aiRouter = router({
       return JSON.parse(content);
     }),
 
-  // ─── 6. GET REVIEW HISTORY ───────────────────────────────────────────────────────────────────────────────────
+  // ─── 6. SUGGEST FIELD CONTENT (AI inline help) ────────────────────────────
+  suggestFieldContent: publicProcedure
+    .input(z.object({
+      fieldId: z.string(),
+      fieldLabel: z.string(),
+      fieldType: z.string(),
+      hint: z.string().optional(),
+      placeholder: z.string().optional(),
+      stepId: z.string(),
+      stepTitle: z.string(),
+      currentValue: z.string().optional(),
+      projectContext: z.record(z.string(), z.record(z.string(), z.string())).optional(),
+      projectTitle: z.string().optional(),
+      applicantName: z.string().optional(),
+      competitionName: z.string().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const contextLines: string[] = [];
+      if (input.projectTitle) contextLines.push('Tytul projektu: ' + input.projectTitle);
+      if (input.applicantName) contextLines.push('Wnioskodawca: ' + input.applicantName);
+      if (input.competitionName) contextLines.push('Konkurs: ' + input.competitionName);
+      if (input.projectContext) {
+        for (const [, fields] of Object.entries(input.projectContext)) {
+          for (const [fieldId, value] of Object.entries(fields)) {
+            if (value && fieldId !== input.fieldId) {
+              contextLines.push(fieldId + ': ' + value);
+            }
+          }
+        }
+      }
+      const systemPrompt = [
+        'Jestes ekspertem od pisania wygrywajacych wnioskow o dofinansowanie NGO w Polsce.',
+        'Twoje zadanie: wygenerowac konkretna, profesjonalna tresc dla jednego pola wniosku.',
+        'Pisz po polsku. Badz konkretny, uzyj liczb i dat jesli to mozliwe.',
+        'Dostosuj tresc do kontekstu projektu.',
+        '',
+        'Odpowiedz WYLACZNIE w formacie JSON (bez markdown, bez backticks):',
+        '{',
+        '  "value": "wygenerowana tresc pola",',
+        '  "tip": "krotka wskazowka jak wzmocnic to pole (1 zdanie)"',
+        '}',
+      ].join('\n');
+      const userMsg = [
+        'Kontekst projektu:',
+        contextLines.join('\n') || 'brak kontekstu',
+        '',
+        'Wygeneruj tresc dla pola: ' + input.fieldLabel,
+        'Krok wniosku: ' + input.stepTitle,
+        input.hint ? 'Wskazowka: ' + input.hint : '',
+        input.placeholder ? 'Przykladowa tresc: ' + input.placeholder : '',
+        input.currentValue ? 'Aktualna tresc (popraw/rozwin): ' + input.currentValue : '',
+      ].filter(Boolean).join('\n');
+      const response = await invokeLLM({
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userMsg },
+        ],
+        response_format: { type: 'json_object' },
+        maxTokens: 800,
+      });
+      const content = response.choices[0].message.content as string;
+      return JSON.parse(content) as { value: string; tip: string };
+    }),
+
+  // ─── 7. GET REVIEW HISTORY ───────────────────────────────────────────────────────────────────────────────────
   getReviewHistory: publicProcedure
     .input(z.object({
       projectId: z.string().optional(),
