@@ -35,8 +35,8 @@ yarn-error.*
 .env
 .env.production
 
-# Build outputs (built on Render)
-dist-web/
+# dist-web is committed pre-built (not built on Render)
+# dist-web/
 
 # typescript
 *.tsbuildinfo
