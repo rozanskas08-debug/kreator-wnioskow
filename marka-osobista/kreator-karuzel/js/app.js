@@ -6,7 +6,7 @@
   const KLUCZ = "kreator-karuzel:szkic";
 
   const kopia = (o) => JSON.parse(JSON.stringify(o));
-  const nowa = (wzor) => ({ ciaglosc: true, ...kopia(wzor), format: "4:5" });
+  const nowa = (wzor) => ({ ...kopia(wzor), format: "4:5" });
 
   let k = null;
   let wybrany = 0;
@@ -70,7 +70,9 @@
     wybrany = Math.min(idx, k.slajdy.length - 1);
     $("format").value = k.format;
     $("motyw").value = k.motyw || "papier";
-    $("ciaglosc").checked = k.ciaglosc !== false;
+    $("ciaglosc").checked = k.ciaglosc === true;
+    $("ramka").value = k.ramka || "";
+    $("stopka").value = k.stopka || "";
     $("seria").value = k.seria || "";
     $("nr").value = k.nr || "";
     $("opis").value = k.opis || S.opis(k);
@@ -249,10 +251,15 @@
           licz();
           poZmianie();
         };
-        if (s.typ === "sciaga") {
+        const podp = {
+          sciaga: "Puste = ściąga zbierze tytuły punktów automatycznie.",
+          ikony: "Ikona dobiera się sama z treści. Możesz ją wskazać na początku: {kalendarz} Tekst. Ikony: " + Silnik.IKONY.join(", ") + ".",
+          koszty: "Jedna pozycja w linii: Etykieta | Wartość, np. Budżet reklamowy | 1 500 zł. Ostatnia linia to suma.",
+        }[s.typ];
+        if (podp) {
           const pm = document.createElement("p");
           pm.className = "pomoc";
-          pm.textContent = "Puste = ściąga zbierze tytuły punktów automatycznie.";
+          pm.textContent = podp;
           l.append(el, pm);
         }
       } else if (def.dlugie) {
@@ -350,6 +357,9 @@
     if (typ === "przedpo") Object.assign(s, { przed: "Słaba wersja", po: "Lepsza wersja" });
     if (typ === "wiadomosc") s.tekst = "Treść wiadomości do skopiowania.";
     if (typ === "cta") Object.assign(s, { tytul: "Co *dalej*?", slowo: "WORKBOOK", portret: true });
+    if (typ === "artykul") Object.assign(s, { tytul: "Nagłówek z *akcentem*", tekst: "Pierwszy akapit.\n\nDrugi akapit.", wniosek: "{zarowka} Puenta, którą klientka ma zapamiętać." });
+    if (typ === "ikony") Object.assign(s, { tytul: "Lista z *ikonami*", pozycje: ["{kalendarz} Pierwsza rzecz", "{dymek} Druga rzecz", "{serce} Trzecia rzecz"] });
+    if (typ === "koszty") Object.assign(s, { tytul: "Załóżmy:", pozycje: ["Pierwsza pozycja | 1 800 zł", "Druga pozycja | 1 500 zł", "Razem | 3 300 zł"] });
     k.slajdy.splice(wybrany + 1, 0, s);
     wybrany++;
     odswiezWszystko();
@@ -369,6 +379,27 @@
     poZmianie();
   };
   $("bez-przerw").onchange = () => rysujTasme();
+  $("ramka").onchange = () => {
+    if ($("ramka").value) k.ramka = $("ramka").value;
+    else delete k.ramka;
+    poZmianie();
+  };
+  $("stopka").oninput = () => {
+    k.stopka = $("stopka").value;
+    poZmianie();
+  };
+  $("tlo-plik").onchange = async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    k.tlo = await zmniejsz(f);
+    await Silnik.przygotuj(k);
+    e.target.value = "";
+    poZmianie();
+  };
+  $("tlo-usun").onclick = () => {
+    delete k.tlo;
+    poZmianie();
+  };
   $("seria").oninput = () => {
     k.seria = $("seria").value;
     $("tytul-karuzeli").textContent = k.seria || "Karuzela";

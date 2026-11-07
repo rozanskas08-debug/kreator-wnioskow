@@ -36,6 +36,7 @@
   async function przygotuj(k) {
     const lista = [Z.logo, Z.portret];
     for (const s of k.slajdy) if (s.obraz) lista.push(s.obraz);
+    if (k.tlo) lista.push(k.tlo);
     await Promise.all(lista.filter(Boolean).map((s) => obraz(s).p));
     if (document.fonts) {
       await Promise.all(
@@ -98,8 +99,9 @@
     disp: (r, w = 500, it = false) => `${it ? "italic " : ""}${w} ${r}px ${M.fonty.display}`,
     txt: (r, w = 600) => `${w} ${r}px ${M.fonty.tekst}`,
   };
-  const fNag = (r, a) => F.nag(r, 700, a);
-  const fTresc = (r, a) => F.nag(r, 400, a);
+  // *słowo* = kolor akcentu, _słowo_ = kursywa (jak na Twoich slajdach)
+  const fNag = (r, a, k) => F.nag(r, k ? 500 : 700, k);
+  const fTresc = (r, a, k) => F.nag(r, a ? 700 : 400, k);
   function odstep(ctx, px) {
     if ("letterSpacing" in ctx) ctx.letterSpacing = px + "px";
   }
@@ -108,11 +110,13 @@
   function tokeny(tekst) {
     const out = [];
     let akc = false;
+    let kur = false;
     let spacjaPrzed = true;
     String(tekst || "")
-      .split(/(\*|\n)/)
+      .split(/(\*|_|\n)/)
       .forEach((kaw) => {
         if (kaw === "*") return void (akc = !akc);
+        if (kaw === "_") return void (kur = !kur);
         if (kaw === "\n") {
           out.push({ br: true });
           spacjaPrzed = true;
@@ -123,7 +127,7 @@
           if (!w) return;
           // „*druga*.” — kropka przykleja się do słowa, bez spacji
           const doklej = i === 0 && !spacjaPrzed && out.length > 0 && !out[out.length - 1].br;
-          out.push({ t: w, akc, doklej });
+          out.push({ t: w, akc, kur, doklej });
         });
         spacjaPrzed = / $/.test(kaw);
       });
@@ -131,14 +135,14 @@
   }
   function zlam(ctx, tok, maxW, font) {
     const linie = [{ el: [], w: 0 }];
-    ctx.font = font(false);
+    ctx.font = font(false, false);
     const spacja = ctx.measureText(" ").width;
     for (const t of tok) {
       if (t.br) {
         linie.push({ el: [], w: 0 });
         continue;
       }
-      ctx.font = font(t.akc);
+      ctx.font = font(t.akc, t.kur);
       const w = ctx.measureText(t.t).width;
       let l = linie[linie.length - 1];
       if (t.doklej && l.el.length) {
@@ -161,12 +165,12 @@
     const tok = tokeny(wersaliki ? String(tekst || "").toLocaleUpperCase("pl") : tekst);
     for (let r = start; r >= min; r -= 2) {
       odstep(ctx, ls * r);
-      const linie = zlam(ctx, tok, maxW, (a) => font(r, a));
+      const linie = zlam(ctx, tok, maxW, (a, k) => font(r, a, k));
       const h = linie.length * r * lh;
       if (h <= maxH && linie.every((l) => l.w <= maxW + 1)) return { linie, r, h, lh, ls };
     }
     odstep(ctx, ls * min);
-    const linie = zlam(ctx, tok, maxW, (a) => font(min, a));
+    const linie = zlam(ctx, tok, maxW, (a, k) => font(min, a, k));
     return { linie, r: min, h: linie.length * min * lh, lh, ls };
   }
   function pisz(ctx, blok, x, y, { font, kolor, akcent, wyrownaj = "left", szer = 0 }) {
@@ -178,7 +182,7 @@
       const by = y + r * 0.8 + i * r * lh;
       const dx = wyrownaj === "center" ? (szer - l.w) / 2 : 0;
       for (const e of l.el) {
-        ctx.font = font(r, e.akc);
+        ctx.font = font(r, e.akc, e.kur);
         ctx.fillStyle = e.akc ? akcent : kolor;
         ctx.fillText(e.t, x + dx + e.x, by);
       }
@@ -205,7 +209,7 @@
   }
 
   function slowa(t) {
-    return String(t || "").replace(/\*/g, "").split(/\s+/).filter(Boolean).length;
+    return String(t || "").replace(/[*_]/g, "").replace(/\{[^}]*\}/g, "").split(/\s+/).filter(Boolean).length;
   }
 
   // ---------- geometria ----------
@@ -221,7 +225,7 @@
   const tlaCache = new Map();
   function warstwaTla(k, i, W, H, m) {
     const n = k.slajdy.length;
-    const klucz = [i, n, m.tlo, W, H, k.ciaglosc !== false, k.liscie !== false].join("|");
+    const klucz = [i, n, m.tlo, W, H, k.ciaglosc === true, k.liscie !== false].join("|");
     if (tlaCache.has(klucz)) return tlaCache.get(klucz);
     const c = document.createElement("canvas");
     c.width = W;
@@ -279,7 +283,7 @@
       ctx.stroke();
     }
     // nić łącząca slajdy
-    if (k.ciaglosc !== false && n > 1) {
+    if (k.ciaglosc === true && n > 1) {
       const pts = punktyNici(n, W, H);
       ctx.strokeStyle = m.akcent;
       ctx.globalAlpha = 0.55;
@@ -360,59 +364,120 @@
     return pts[pts.length - 1][1];
   }
 
-  // ---------- nagłówek i stopka (jak na Twoich postach) ----------
+  // ---------- nagłówek i stopka (jak na Twoich seriach) ----------
+  // „edytorial”: 01/9 ——— MARKETING BEAUTY u góry, KARUZELA EDUKACYJNA ——— (1/9) → na dole
+  // „jasna”: 01/06 z kreską i dużym łukiem w prawym górnym rogu, kółko ze strzałką na dole
+  const ramkaKaruzeli = (k, m) => k.ramka || (m.ciemny ? "edytorial" : "jasna");
+
   function naglowek(ctx, k, i, W, m, s) {
     const n = k.slajdy.length;
     const logo = logoWKolorze(m.tekst);
-    const srodek = s.typ === "okladka" && ukladOkladki(s) === "tekst";
+    const srodek = s.typ === "okladka" && ukladOkladki(s) === "tekst" && !k.tlo;
+    const ramka = ramkaKaruzeli(k, m);
     if (logo) {
-      const lw = srodek ? 400 : 300;
+      const lw = srodek ? 420 : 340;
       const lh = (logo.height / logo.width) * lw;
-      ctx.drawImage(logo, srodek ? (W - lw) / 2 : MARG - 14, srodek ? 120 : 64, lw, lh);
+      ctx.drawImage(logo, srodek ? (W - lw) / 2 : MARG - 34, srodek ? 110 : 52, lw, lh);
     }
-    if (!srodek) {
-      ctx.save();
-      ctx.font = F.txt(21, 600);
-      odstep(ctx, 3);
-      ctx.fillStyle = m.tekst;
-      ctx.globalAlpha = 0.8;
+    if (srodek) return;
+    const nr = `${String(i + 1).padStart(2, "0")}/${ramka === "jasna" ? String(n).padStart(2, "0") : n}`;
+    ctx.save();
+    ctx.fillStyle = m.tekst;
+    ctx.strokeStyle = m.tekst;
+    ctx.textBaseline = "alphabetic";
+    if (ramka === "jasna") {
+      ctx.strokeStyle = m.akcent;
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.arc(W + 70, 60, 330, Math.PI * 0.5, Math.PI * 1.05);
+      ctx.stroke();
+      ctx.font = F.nag(38, 400);
+      ctx.fillStyle = m.akcent;
       ctx.textAlign = "right";
-      ctx.textBaseline = "middle";
-      ctx.fillText(`${String(i + 1).padStart(2, "0")}/${String(n).padStart(2, "0")}`, W - MARG, 98);
-      ctx.restore();
+      ctx.fillText(nr, W - 70, 132);
+      ctx.fillRect(W - 70 - ctx.measureText(nr).width, 84, 40, 1.6);
+    } else {
+      ctx.font = F.nag(30, 400);
+      ctx.globalAlpha = 0.9;
+      ctx.textAlign = "left";
+      const x0 = W * 0.6;
+      ctx.fillText(nr, x0, 112);
+      const wn = ctx.measureText(nr).width;
+      ctx.globalAlpha = 0.6;
+      ctx.fillRect(x0 + wn + 22, 102, W - MARG + 20 - (x0 + wn + 22), 1.5);
+      ctx.globalAlpha = 0.85;
+      ctx.font = F.txt(17, 600);
+      odstep(ctx, 5);
+      ctx.textAlign = "right";
+      ctx.fillText("MARKETING BEAUTY", W - MARG + 20, 140);
     }
+    ctx.restore();
   }
 
   function stopka(ctx, k, i, W, H, m) {
     const n = k.slajdy.length;
-    const y = H - 92;
     const ostatni = i === n - 1;
+    const ramka = ramkaKaruzeli(k, m);
     ctx.save();
-    ctx.font = F.txt(17, 700);
-    odstep(ctx, 3.5);
     ctx.fillStyle = m.tekst;
-    ctx.globalAlpha = 0.75;
-    ctx.textBaseline = "middle";
-    const tekst = (ostatni ? M.instagram : k.stopka || "Sylwia Ida Różańska | Marketing Beauty").toLocaleUpperCase("pl");
-    ctx.fillText(ostatni ? M.instagram : tekst, MARG, y + 1);
-    const wt = ctx.measureText(ostatni ? M.instagram : tekst).width;
-    // linia → kółko z numerem → strzałka
-    const r = 34;
-    const cx = W - MARG - (ostatni ? r : 76 + r);
-    ctx.globalAlpha = 0.55;
-    ctx.fillRect(MARG + wt + 28, y, cx - r - 16 - (MARG + wt + 28), 1.5);
-    ctx.globalAlpha = 0.9;
     ctx.strokeStyle = m.tekst;
+    if (ramka === "jasna") {
+      // ćwiartka koła w lewym dolnym rogu
+      ctx.fillStyle = m.ciemny ? "rgba(232,203,196,0.12)" : "rgba(232,203,196,0.75)";
+      ctx.beginPath();
+      ctx.arc(-30, H + 30, 200, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = m.akcent;
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.arc(-60, H + 40, 270, Math.PI * 1.45, Math.PI * 2);
+      ctx.stroke();
+      if (ostatni) {
+        ctx.font = F.txt(18, 700);
+        odstep(ctx, 3);
+        ctx.fillStyle = m.tekst;
+        ctx.textAlign = "right";
+        ctx.textBaseline = "middle";
+        ctx.fillText(M.instagram, W - MARG, H - 80);
+      } else {
+        const cx = W - 104;
+        const cy = H - 104;
+        ctx.strokeStyle = m.tekst;
+        ctx.globalAlpha = 0.85;
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 46, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+        strzalka(ctx, cx - 22, cy, 44, m.tekst, 2);
+        return;
+      }
+      ctx.restore();
+      return;
+    }
+    const y = H - 92;
+    ctx.font = F.txt(18, 600);
+    odstep(ctx, 5.5);
+    ctx.globalAlpha = 0.85;
+    ctx.textBaseline = "middle";
+    const tekst = ostatni ? M.instagram : (k.stopka || "Karuzela edukacyjna").toLocaleUpperCase("pl");
+    ctx.fillText(tekst, MARG - 20, y + 1);
+    const wt = ctx.measureText(tekst).width;
+    const r = 40;
+    const cx = W - MARG - (ostatni ? r : 60 + r) + 20;
+    ctx.globalAlpha = 0.55;
+    ctx.fillRect(MARG - 20 + wt + 28, y, cx - r - 18 - (MARG - 20 + wt + 28), 1.5);
+    ctx.globalAlpha = 0.9;
     ctx.lineWidth = 1.6;
     ctx.beginPath();
     ctx.arc(cx, y, r, 0, Math.PI * 2);
     ctx.stroke();
-    ctx.font = F.nag(22, 400);
+    ctx.font = F.nag(26, 400);
     odstep(ctx, 0);
     ctx.textAlign = "center";
     ctx.fillText(`${i + 1}/${n}`, cx, y + 2);
     ctx.restore();
-    if (!ostatni) strzalka(ctx, cx + r + 18, y, 50, m.tekst);
+    if (!ostatni) strzalka(ctx, cx + r + 12, y, 36, m.tekst);
   }
   function strzalka(ctx, x, y, dl, kolor, gr = 2) {
     ctx.save();
@@ -481,6 +546,147 @@
     ctx.fillStyle = t;
     ctx.fillRect(0, 0, W, 260);
     ctx.restore();
+  }
+
+  // ---------- ikony (linie w stylu Lucide, licencja ISC) ----------
+  const IKONY = {
+    kalendarz: "M8 2v4 M16 2v4 M3 10h18 M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z M8 14h.01 M12 14h.01 M16 14h.01 M8 18h.01 M12 18h.01",
+    dzwonek: "M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9 M10.3 21a1.94 1.94 0 0 0 3.4 0",
+    serce: "M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z",
+    powrot: "M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8 M21 3v5h-5",
+    oko: "M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0",
+    koperta: "M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z M22 6l-10 7L2 6",
+    metka: "M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z M8.5 7.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0",
+    osoby: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M13 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0 M22 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75",
+    dymek: "M7.9 20A9 9 0 1 0 4 16.1L2 22Z",
+    zarowka: "M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5 M9 18h6 M10 22h4",
+    wykres: "M3 3v18h18 M18 17V9 M13 17V5 M8 17v-3",
+    wzrost: "M22 7l-8.5 8.5-5-5L2 17 M16 7h6v6",
+    megafon: "M3 11l18-5v12L3 14v-3z M11.6 16.8a3 3 0 1 1-5.8-1.6",
+    monety: "M12 8c4.97 0 9-1.34 9-3s-4.03-3-9-3-9 1.34-9 3 4.03 3 9 3z M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5 M3 12c0 1.66 4 3 9 3s9-1.34 9-3",
+    telefon: "M7 2h10a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z M12 18h.01",
+    gwiazda: "M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z",
+    zegar: "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z M12 6v6l4 2",
+    cel: "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12z M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z",
+    ok: "M22 11.08V12a10 10 0 1 1-5.93-9.14 M22 4L12 14.01l-3-3",
+    portfel: "M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1 M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4",
+  };
+  const SLOWA_IKON = [
+    ["kalendarz", /termin|kalendarz|grafik|wizyt|umówi|rezerw|dni\b|tydzie/],
+    ["dymek", /sms|wiadomo|dm\b|rozmow|odpis|odpowied|napisz|komentarz/],
+    ["koperta", /mail|e-mail|newsletter|ofert[ąa] na/],
+    ["metka", /promocj|pakiet|rabat|cen[aęy]|voucher|bon/],
+    ["powrot", /powr|wraca|ponown|kolejn/],
+    ["serce", /relacj|zaufani|lojal|polub|serce|opieka/],
+    ["osoby", /klientk|kobiet|zespół|agencj|obsług/],
+    ["megafon", /reklam|kampani|meta|ads|budżet reklam/],
+    ["monety", /koszt|zł|budżet|pieniąd|łączn|zarob/],
+    ["wykres", /wynik|liczb|analiz|dane|raport|rentown/],
+    ["wzrost", /wzrost|więcej|skal|rośnie/],
+    ["oko", /zobacz|widzi|uwag|zasięg/],
+    ["zarowka", /pomysł|wniosek|dlatego|pamiętaj|wskazówk/],
+    ["telefon", /telefon|instagram|booksy|aplikac/],
+    ["zegar", /czas|godzin|minut|szybk|tempo/],
+    ["gwiazda", /opini|efekt|jakoś/],
+    ["cel", /cel\b|celem|konkret/],
+  ];
+  const sciezkiIkon = new Map();
+  function ikonaZTekstu(t, zapas = "ok") {
+    const m = /^\s*\{([^}]+)\}/.exec(t || "");
+    if (m && IKONY[m[1].trim()]) return m[1].trim();
+    const l = String(t || "").toLowerCase();
+    for (const [n, re] of SLOWA_IKON) if (re.test(l)) return n;
+    return zapas;
+  }
+  const bezIkony = (t) => String(t || "").replace(/^\s*\{[^}]*\}\s*/, "");
+  function rysujIkone(ctx, nazwa, cx, cy, rozmiar, kolor, gr = 1.8) {
+    if (!IKONY[nazwa]) return;
+    if (!sciezkiIkon.has(nazwa)) sciezkiIkon.set(nazwa, new Path2D(IKONY[nazwa]));
+    ctx.save();
+    ctx.translate(cx - rozmiar / 2, cy - rozmiar / 2);
+    ctx.scale(rozmiar / 24, rozmiar / 24);
+    ctx.strokeStyle = kolor;
+    ctx.lineWidth = gr;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.stroke(sciezkiIkon.get(nazwa));
+    ctx.restore();
+  }
+  // Kółko z ikoną: „jasne” = pudrowe tło + bordowa ikona, „ciemne” = bordo + kremowa ikona
+  function kolkoIkony(ctx, nazwa, cx, cy, r, m, styl = "jasne") {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    let kol;
+    if (styl === "ciemne") {
+      ctx.fillStyle = K.wino;
+      ctx.fill();
+      kol = K.krem;
+    } else if (styl === "obrys") {
+      ctx.strokeStyle = m.ciemny ? K.krem : K.bordo;
+      ctx.lineWidth = 1.6;
+      ctx.stroke();
+      kol = m.ciemny ? K.krem : K.bordo;
+    } else {
+      ctx.fillStyle = m.ciemny ? "rgba(232,203,196,0.22)" : "rgba(214,170,165,0.55)";
+      ctx.fill();
+      kol = m.ciemny ? K.puder : K.bordo;
+    }
+    ctx.restore();
+    rysujIkone(ctx, nazwa, cx, cy, r * 0.95, kol, 1.7);
+  }
+  function zaokr(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(x, y, w, h, r);
+    else ctx.rect(x, y, w, h);
+  }
+  const tloKarty = (m) => (m.ciemny ? "rgba(255,251,246,0.08)" : "rgba(232,203,196,0.55)");
+
+  // Ramka-wniosek: ikona | pionowa kreska | tekst. Styl „jasny” albo „ciemny” (bordowy).
+  function wniosek(ctx, s, x, y, w, m, tylkoPomiar = false) {
+    if (!s.wniosek) return 0;
+    const ciemny = s.wniosekStyl === "ciemny";
+    const ik = ikonaZTekstu(s.wniosek, "zarowka");
+    const pad = 34;
+    const rI = 46;
+    const tx = x + pad + rI * 2 + 56;
+    const tw = x + w - pad - tx;
+    const kolTekst = ciemny ? (m.ciemny ? K.wino : K.krem) : m.tekst;
+    const kolAkc = ciemny ? (m.ciemny ? K.bordo : K.krem) : m.akcent;
+    const tb = dopasuj(ctx, bezIkony(s.wniosek), { maxW: tw, maxH: 230, start: 36, min: 24, lh: 1.3, font: fTresc, wersaliki: !!s.wniosekWersaliki });
+    const h = Math.max(rI * 2 + pad * 1.4, tb.h + pad * 2);
+    if (tylkoPomiar) return h;
+    ctx.save();
+    zaokr(ctx, x, y, w, h, 24);
+    ctx.fillStyle = ciemny ? (m.ciemny ? K.puder : K.bordo) : tloKarty(m);
+    ctx.fill();
+    const cy = y + h / 2;
+    if (ciemny) kolkoIkony(ctx, ik, x + pad + rI, cy, rI, { ciemny: !m.ciemny }, "obrys");
+    else if (m.ciemny) rysujIkone(ctx, ik, x + pad + rI, cy, rI * 1.2, K.puder, 1.6);
+    else kolkoIkony(ctx, ik, x + pad + rI, cy, rI, m, "ciemne");
+    ctx.fillStyle = kolTekst;
+    ctx.globalAlpha = 0.6;
+    ctx.fillRect(x + pad + rI * 2 + 28, y + pad * 0.8, 1.5, h - pad * 1.6);
+    ctx.globalAlpha = 1;
+    pisz(ctx, tb, tx, cy - tb.h / 2, { font: fTresc, kolor: kolTekst, akcent: kolAkc });
+    ctx.restore();
+    return h;
+  }
+
+  // Kilka akapitów tym samym rozmiarem; pusta linia = nowy akapit
+  function akapity(ctx, tekst, maxW, maxH, start = 40, min = 24) {
+    const czesci = String(tekst || "").split(/\n\s*\n/).filter((t) => t.trim());
+    for (let r = start; r >= min; r -= 2) {
+      const bloki = czesci.map((t) => dopasuj(ctx, t, { maxW, maxH: 9999, start: r, min: r, lh: 1.36, font: fTresc }));
+      const h = bloki.reduce((a, b) => a + b.h, 0) + (bloki.length - 1) * r * 0.8;
+      if (h <= maxH || r === min) return { bloki, h, odstep: r * 0.8 };
+    }
+  }
+  function piszAkapity(ctx, ak, x, y, m) {
+    for (const b of ak.bloki) {
+      pisz(ctx, b, x, y, { font: fTresc, kolor: m.tekst, akcent: m.akcent });
+      y += b.h + ak.odstep;
+    }
   }
 
   // ---------- układy slajdów ----------
@@ -557,7 +763,8 @@
     const srodek = s.wyrownanie === "srodek";
     const b = dopasuj(ctx, s.tytul, { maxW: o.w, maxH: (o.dol - o.y) * 0.55, start: 112, min: 52, lh: 1.0, font: fNag, ls: -0.02, wersaliki: caps });
     const tb = s.tekst ? dopasuj(ctx, s.tekst, { maxW: o.w * 0.86, maxH: 300, start: 40, min: 26, lh: 1.4, font: fTresc }) : null;
-    const total = b.h + (tb ? tb.h + 90 : 0) + (s.etykieta ? 70 : 0);
+    const wh = wniosek(ctx, s, o.x, 0, o.w, m, true);
+    const total = b.h + (tb ? tb.h + 90 : 0) + (s.etykieta ? 70 : 0) + (wh ? wh + 50 : 0);
     let y = o.y + Math.max(40, (o.dol - o.y - total) / 2 - 20);
     const al = srodek ? "center" : "left";
     if (s.etykieta) {
@@ -572,7 +779,9 @@
       ctx.globalAlpha = 0.9;
       pisz(ctx, tb, srodek ? o.x + o.w * 0.07 : o.x, y, { font: fTresc, kolor: m.tekst, akcent: m.akcent, wyrownaj: al, szer: o.w * 0.86 });
       ctx.globalAlpha = 1;
+      y += tb.h + 50;
     }
+    if (wh) wniosek(ctx, s, o.x, Math.min(y, o.dol - 70 - wh), o.w, m);
   };
 
   UKLADY.punkt = (ctx, s, c) => {
@@ -605,6 +814,129 @@
       pisz(ctx, tb, o.x, y, { font: fTresc, kolor: m.tekst, akcent: m.akcent });
       ctx.globalAlpha = 1;
     }
+  };
+
+  // Nagłówek + akapity + wniosek (najczęstszy środkowy slajd w Twoich karuzelach)
+  UKLADY.artykul = (ctx, s, c) => {
+    const { m, o } = c;
+    const sz = o.w;
+    const dol = o.dol - 70;
+    const wh = wniosek(ctx, s, o.x, 0, sz, m, true);
+    const b = dopasuj(ctx, s.tytul, { maxW: sz, maxH: (dol - o.y) * 0.42, start: 120, min: 52, lh: 1.0, font: fNag, ls: -0.02, wersaliki: wersal(s, false) });
+    const miejsce = dol - o.y - 40 - b.h - 80 - (wh ? wh + 50 : 0);
+    const ak = s.tekst ? akapity(ctx, s.tekst, sz * 0.94, miejsce) : null;
+    const calosc = b.h + 80 + (ak ? ak.h : 0) + (wh ? wh + 50 : 0);
+    let y = o.y + Math.max(30, (dol - o.y - calosc) * 0.35);
+    if (s.etykieta) etykieta(ctx, s.etykieta, o.x, y - 30, m.akcent);
+    pisz(ctx, b, o.x, y, { font: fNag, kolor: m.tekst, akcent: m.akcent });
+    y += b.h + 34;
+    kreska(ctx, o.x, y, m.tekst, 80, 2);
+    y += 46;
+    if (ak) {
+      piszAkapity(ctx, ak, o.x, y, m);
+      y += ak.h + 50;
+    }
+    if (wh) wniosek(ctx, s, o.x, Math.min(y, dol - wh), sz, m);
+  };
+
+  // Lista z ikonami w kółkach: „karty”, „os” (połączone linią) albo „proste”
+  UKLADY.ikony = (ctx, s, c) => {
+    const { m, o } = c;
+    const sz = o.w;
+    const dol = o.dol - 70;
+    const styl = s.styl || "karty";
+    const wh = wniosek(ctx, s, o.x, 0, sz, m, true);
+    let y = o.y + 20;
+    const b = dopasuj(ctx, s.tytul, { maxW: sz, maxH: 300, start: 104, min: 48, lh: 1.0, font: fNag, ls: -0.02, wersaliki: wersal(s, false) });
+    pisz(ctx, b, o.x, y, { font: fNag, kolor: m.tekst, akcent: m.akcent });
+    y += b.h + 30;
+    if (s.tekst) {
+      const tb = dopasuj(ctx, s.tekst, { maxW: sz * 0.94, maxH: 200, start: 38, min: 26, lh: 1.32, font: fTresc });
+      pisz(ctx, tb, o.x, y, { font: fTresc, kolor: m.tekst, akcent: m.akcent });
+      y += tb.h + 26;
+    }
+    kreska(ctx, o.x, y, m.tekst, 80, 2);
+    y += 40;
+    const poz = (s.pozycje || []).filter(Boolean);
+    const dost = dol - y - (wh ? wh + 34 : 0);
+    const krok = Math.max(96, Math.min(160, dost / Math.max(1, poz.length)));
+    const rI = Math.min(46, krok * 0.36);
+    poz.forEach((p, i) => {
+      const py = y + i * krok;
+      const cy = py + (krok - 14) / 2;
+      const ik = ikonaZTekstu(p);
+      let tx = o.x + rI * 2 + 60;
+      if (styl === "karty") {
+        zaokr(ctx, o.x, py, sz, krok - 14, 22);
+        ctx.fillStyle = tloKarty(m);
+        ctx.fill();
+        kolkoIkony(ctx, ik, o.x + 26 + rI, cy, rI, m, "jasne");
+        ctx.fillStyle = m.tekst;
+        ctx.globalAlpha = 0.5;
+        ctx.fillRect(o.x + 26 + rI * 2 + 24, py + 22, 1.5, krok - 58);
+        ctx.globalAlpha = 1;
+        tx = o.x + 26 + rI * 2 + 50;
+      } else {
+        if (styl === "os" && i < poz.length - 1) {
+          ctx.fillStyle = m.tekst;
+          ctx.fillRect(o.x + rI - 1, cy + rI + 6, 2, krok - rI * 2 - 12);
+        }
+        kolkoIkony(ctx, ik, o.x + rI, cy, rI, m, "jasne");
+      }
+      const pb = dopasuj(ctx, bezIkony(p), { maxW: o.x + sz - tx - 24, maxH: krok - 30, start: 36, min: 22, lh: 1.25, font: fTresc });
+      pisz(ctx, pb, tx, cy - pb.h / 2, { font: fTresc, kolor: m.tekst, akcent: m.akcent });
+    });
+    if (wh) wniosek(ctx, s, o.x, Math.min(y + poz.length * krok + 20, dol - wh), sz, m);
+  };
+
+  // Zestawienie: karty „Etykieta | Wartość” (jak „ZAŁÓŻMY:”), ostatni wiersz = suma
+  UKLADY.koszty = (ctx, s, c) => {
+    const { m, o } = c;
+    const sz = o.w;
+    const dol = o.dol - 70;
+    const wh = wniosek(ctx, s, o.x, 0, sz, m, true);
+    let y = o.y + 20;
+    const b = dopasuj(ctx, s.tytul, { maxW: sz, maxH: 220, start: 120, min: 52, lh: 1.0, font: fNag, ls: -0.02, wersaliki: wersal(s, true) });
+    pisz(ctx, b, o.x, y, { font: fNag, kolor: m.tekst, akcent: m.akcent });
+    y += b.h + 26;
+    const poz = (s.pozycje || []).filter(Boolean).map((p) => p.split("|").map((x) => x.trim()));
+    const tb = s.tekst ? dopasuj(ctx, s.tekst, { maxW: sz * 0.94, maxH: 200, start: 38, min: 26, lh: 1.3, font: fTresc }) : null;
+    const dost = dol - y - (wh ? wh + 40 : 0) - (tb ? tb.h + 70 : 0);
+    const krok = Math.max(100, Math.min(140, dost / Math.max(1, poz.length)));
+    const rI = Math.min(42, krok * 0.32);
+    poz.forEach(([et, wart], i) => {
+      const py = y + i * krok;
+      const h = krok - 14;
+      const cy = py + h / 2;
+      const suma = i === poz.length - 1 && s.suma !== false && poz.length > 1;
+      zaokr(ctx, o.x, py, sz, h, 18);
+      ctx.fillStyle = m.ciemny ? "rgba(232,203,196,0.9)" : "rgba(232,203,196,0.75)";
+      ctx.fill();
+      kolkoIkony(ctx, ikonaZTekstu(et, "monety"), o.x + 22 + rI, cy, rI, m, "ciemne");
+      const kol = K.wino;
+      ctx.fillStyle = kol;
+      ctx.globalAlpha = 0.6;
+      const xd = o.x + sz * 0.66;
+      ctx.fillRect(xd, py + 18, 1.5, h - 36);
+      ctx.globalAlpha = 1;
+      const tx = o.x + 22 + rI * 2 + 30;
+      const fe = (r, a, k) => F.nag(r, suma || a ? 700 : 400, k);
+      const eb = dopasuj(ctx, bezIkony(et), { maxW: xd - tx - 20, maxH: h - 20, start: 34, min: 20, lh: 1.15, font: fe });
+      pisz(ctx, eb, tx, cy - eb.h / 2, { font: fe, kolor: kol, akcent: K.bordo });
+      if (wart) {
+        const fw = (r) => F.nag(r, 700);
+        const wb = dopasuj(ctx, wart, { maxW: o.x + sz - xd - 50, maxH: h - 20, start: 44, min: 22, lh: 1, font: fw });
+        pisz(ctx, wb, xd + 30, cy - wb.h / 2, { font: fw, kolor: kol, akcent: K.bordo });
+      }
+    });
+    y += poz.length * krok + 30;
+    if (tb) {
+      pisz(ctx, tb, o.x, y, { font: fTresc, kolor: m.tekst, akcent: m.akcent });
+      y += tb.h + 30;
+      kreska(ctx, o.x, y, m.tekst, 80, 2);
+      y += 40;
+    }
+    if (wh) wniosek(ctx, s, o.x, Math.min(y, dol - wh), sz, m);
   };
 
   UKLADY.mitfakt = (ctx, s, c) => {
@@ -942,6 +1274,23 @@
     }
   };
 
+  // Zdjęcie sceny na całym slajdzie; po lewej przechodzi w kolor tła, żeby tekst był czytelny
+  function tloSceny(ctx, img, W, H, m) {
+    wpisz(ctx, img, 0, 0, W, H, 0.5, 0.75);
+    const g = ctx.createLinearGradient(0, 0, W, 0);
+    g.addColorStop(0, rgba(m.tlo, 0.94));
+    g.addColorStop(0.42, rgba(m.tlo, 0.82));
+    g.addColorStop(0.72, rgba(m.tlo, 0.18));
+    g.addColorStop(1, rgba(m.tlo, 0));
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+    const t = ctx.createLinearGradient(0, 0, 0, 220);
+    t.addColorStop(0, rgba(m.tlo, 0.5));
+    t.addColorStop(1, rgba(m.tlo, 0));
+    ctx.fillStyle = t;
+    ctx.fillRect(0, 0, W, 220);
+  }
+
   // ---------- API ----------
   function numeruj(k) {
     const punkty = k.slajdy.filter((s) => s.typ === "punkt");
@@ -962,8 +1311,12 @@
     ctx.rect(0, 0, W, H);
     ctx.clip();
     ctx.drawImage(warstwaTla(k, i, W, H, m), 0, 0);
+    const scena = k.tlo && !s.bezTla && !(s.typ === "okladka" && s.obraz) && s.typ !== "zdjecie" ? gotowy(k.tlo) : null;
+    if (scena) tloSceny(ctx, scena, W, H, m);
     ctx.save();
-    (UKLADY[s.typ] || UKLADY.teza)(ctx, s, { W, H, m, o: OBSZAR(W, H) }, k);
+    const o = OBSZAR(W, H);
+    if (scena) o.w = W * 0.64 - MARG; // tekst po lewej, scena po prawej
+    (UKLADY[s.typ] || UKLADY.teza)(ctx, s, { W, H, m, o }, k);
     ctx.restore();
     naglowek(ctx, k, i, W, m, s);
     stopka(ctx, k, i, W, H, m);
@@ -988,17 +1341,17 @@
     if (k.slajdy[0] && k.slajdy[0].typ !== "okladka") u.push("Pierwszy slajd powinien być okładką z hakiem.");
     if (k.slajdy[1] && k.slajdy[1].typ === "zdjecie") u.push("Slajd 2 od razu dowozi wartość — zacznij od tezy, a zdjęcie przesuń dalej.");
     if (k.slajdy[n - 1] && k.slajdy[n - 1].typ !== "cta") u.push("Ostatni slajd: daj jasne CTA (słowo w komentarzu, zapis, wysyłka).");
-    if (!k.slajdy.some((s) => ["sciaga", "lista", "wiadomosc"].includes(s.typ)))
+    if (!k.slajdy.some((s) => ["sciaga", "lista", "wiadomosc", "ikony", "koszty"].includes(s.typ)))
       u.push("Dodaj slajd do zapisania (ściąga, checklista, gotowa wiadomość). Zapisy i udostępnienia napędzają zasięg.");
     if (k.slajdy[0] && !k.slajdy[0].obraz)
       u.push("Na Twojej siatce najlepiej działają okładki z Twoim zdjęciem. Rozważ zdjęcie na okładce.");
     k.slajdy.forEach((s, i) => {
-      const w = ["tytul", "tekst", "podtytul", "mit", "fakt", "przed", "po"].reduce((a, p) => a + slowa(s[p]), 0) + (s.pozycje || []).reduce((a, p) => a + slowa(p), 0);
-      const lim = ["wiadomosc", "przedpo", "lista", "sciaga", "opinia"].includes(s.typ) ? 70 : 32;
+      const w = ["tytul", "tekst", "podtytul", "mit", "fakt", "przed", "po", "wniosek"].reduce((a, p) => a + slowa(s[p]), 0) + (s.pozycje || []).reduce((a, p) => a + slowa(p), 0);
+      const lim = ["wiadomosc", "przedpo", "lista", "sciaga", "opinia", "ikony", "koszty", "artykul"].includes(s.typ) ? 75 : 40;
       if (w > lim) u.push(`Slajd ${i + 1}: ${w} słów. Jedna myśl na slajd — skróć albo podziel na dwa.`);
     });
     return u;
   }
 
-  root.Silnik = { rysuj, plotno, przygotuj, wymiary, uwagi, slowa, UKLADY: Object.keys(UKLADY) };
+  root.Silnik = { rysuj, plotno, przygotuj, wymiary, uwagi, slowa, UKLADY: Object.keys(UKLADY), IKONY: Object.keys(IKONY) };
 })(typeof window !== "undefined" ? window : globalThis);

@@ -20,12 +20,15 @@ W tym folderze są dwie rzeczy:
 Otwórz `kreator-karuzel/index.html` w przeglądarce (Chrome, Edge, Safari). Nie trzeba niczego instalować, a fonty są w środku.
 
 1. **Wybierz gotową karuzelę** z biblioteki albo **napisz nową z AI**. Na claude.ai przycisk „Napisz karuzelę” robi to od razu. Lokalnie kliknij „Kopiuj prompt”, wklej go Claude i wklej odpowiedź (JSON) z powrotem.
-2. **Edytuj slajdy**: typ, motyw, teksty, zdjęcia. Słowo w `*gwiazdkach*` dostaje kursywę w kolorze akcentu. Panel „Uwagi” podpowiada, co poprawić (hak, slajd 2, długość tekstu, slajd do zapisania, CTA).
+2. **Edytuj slajdy**: typ, motyw, teksty, zdjęcia. `*gwiazdki*` = słowa w kolorze akcentu, `_podkreślniki_` = kursywa, pusta linia = nowy akapit. Panel „Uwagi” podpowiada, co poprawić (hak, slajd 2, długość tekstu, slajd do zapisania, CTA).
 3. **Pobierz**: „Pobierz wszystkie slajdy (ZIP)” daje PNG w formacie 4:5 (1080×1350) oraz gotowy opis posta z hashtagami.
 4. **Zapisz projekt** (JSON), żeby wrócić do karuzeli później. Ostatni szkic zapisuje się też w przeglądarce.
 
 ### Typy slajdów
-Okładka (sam tekst / zdjęcie z prawej / zdjęcie w tle) · Teza · Punkt numerowany · Mit vs fakt · Przed/po · Gotowa wiadomość · Checklista · Liczba/krok · Cytat · Opinia klientki · Zdjęcie · Ściąga (zbiera punkty automatycznie) · CTA ze słowem-kluczem.
+Okładka (sam tekst / zdjęcie z prawej / zdjęcie w tle) · Teza · Nagłówek + tekst + wniosek · Lista z ikonami (karty / oś / proste) · Zestawienie „Załóżmy:” · Punkt numerowany · Mit vs fakt · Przed/po · Gotowa wiadomość · Checklista · Liczba/krok · Cytat · Opinia klientki · Zdjęcie · Ściąga (zbiera punkty automatycznie) · CTA ze słowem-kluczem.
+
+### Elementy z Twoich slajdów
+Dwie ramki serii (edytorial na bordo i jasna z łukiem w rogu), ramka-wniosek (jasna lub bordowa), ikony w kółkach dobierane automatycznie z treści (albo wskazane w klamrach, np. `{kalendarz}`) i zdjęcie sceny w tle całej karuzeli. Wzorce: `brand/inspiracje/slajdy/`.
 
 ### Co wynika z trendów 2026
 - format 4:5 (1080×1350) — aktualny format karuzel na Instagramie;

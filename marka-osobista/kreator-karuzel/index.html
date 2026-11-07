@@ -182,7 +182,7 @@ textarea#opis { min-height: 220px; font-size: 13.5px; }
         <span class="naglowek-sekcji" id="tytul-karuzeli" style="font-size:30px">—</span>
       </div>
       <div class="rzad" style="align-items:center">
-        <label for="ciaglosc"><input type="checkbox" id="ciaglosc" checked> Ciągła nić między slajdami</label>
+        <label for="ciaglosc"><input type="checkbox" id="ciaglosc"> Nić łącząca slajdy</label>
         <label for="bez-przerw"><input type="checkbox" id="bez-przerw"> Pokaż bez przerw</label>
       </div>
     </div>
@@ -219,7 +219,7 @@ textarea#opis { min-height: 220px; font-size: 13.5px; }
             </label>
           </div>
           <div id="pola"></div>
-          <p class="pomoc">Słowo w <b>*gwiazdkach*</b> dostaje kursywę w kolorze akcentu. Enter w tytule łamie linię.</p>
+          <p class="pomoc"><b>*gwiazdki*</b> = słowa w kolorze akcentu, <b>_podkreślniki_</b> = kursywa. Pusta linia w tekście = nowy akapit. Enter w tytule łamie linię.</p>
           <div class="rzad" style="margin:16px 0 0">
             <label class="pole" for="nowy-typ" style="margin:0;flex:1;min-width:180px"><span>Dodaj slajd po tym</span><select id="nowy-typ"></select></label>
             <button class="btn pelny" type="button" id="dodaj" style="align-self:end">Dodaj slajd</button>
@@ -231,6 +231,22 @@ textarea#opis { min-height: 220px; font-size: 13.5px; }
           <div class="dwie">
             <label class="pole" for="seria"><span>Seria (nagłówek slajdów)</span><input type="text" id="seria"></label>
             <label class="pole" for="nr"><span>Numer wydania</span><input type="text" id="nr"></label>
+            <label class="pole" for="ramka"><span>Ramka slajdów</span>
+              <select id="ramka">
+                <option value="">Automatycznie (bordo → edytorial, jasne → jasna)</option>
+                <option value="edytorial">Edytorial: 01/9 ——— Marketing Beauty</option>
+                <option value="jasna">Jasna: łuk w rogu, kółko ze strzałką</option>
+              </select>
+            </label>
+            <label class="pole" for="stopka"><span>Napis w stopce (ramka edytorial)</span><input type="text" id="stopka" placeholder="Karuzela edukacyjna"></label>
+          </div>
+          <div class="pole">
+            <span>Zdjęcie tła całej karuzeli (scena: wazon, notes, kawa…)</span>
+            <div class="rzad">
+              <label class="btn" for="tlo-plik">Wgraj zdjęcie tła<input class="ukryty" type="file" id="tlo-plik" accept="image/*"></label>
+              <button class="btn" type="button" id="tlo-usun">Bez zdjęcia tła</button>
+            </div>
+            <p class="pomoc">Zdjęcie pojawia się na wszystkich slajdach, po prawej stronie. Tekst zostaje po lewej, na płynnym przejściu w kolor tła.</p>
           </div>
         </div>
 

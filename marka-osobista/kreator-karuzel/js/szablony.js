@@ -8,7 +8,10 @@
   // Pola edytora dla każdego typu slajdu
   const TYPY = {
     okladka: { nazwa: "Okładka z hakiem", pola: ["obraz", "uklad", "wersaliki", "etykieta", "tytul", "podtytul"] },
-    teza: { nazwa: "Teza (slajd 2)", pola: ["etykieta", "tytul", "tekst", "wyrownanie", "wersaliki"] },
+    teza: { nazwa: "Teza (slajd 2)", pola: ["etykieta", "tytul", "tekst", "wniosek", "wniosekStyl", "wyrownanie", "wersaliki"] },
+    artykul: { nazwa: "Nagłówek + tekst + wniosek", pola: ["tytul", "tekst", "wniosek", "wniosekStyl", "wersaliki", "bezTla"] },
+    ikony: { nazwa: "Lista z ikonami", pola: ["tytul", "tekst", "pozycje", "styl", "wniosek", "wniosekStyl", "wersaliki", "bezTla"] },
+    koszty: { nazwa: "Zestawienie (np. „Załóżmy:”)", pola: ["tytul", "pozycje", "tekst", "wniosek", "wniosekStyl", "wniosekWersaliki", "wersaliki", "bezTla"] },
     punkt: { nazwa: "Punkt numerowany", pola: ["etykieta", "tytul", "tekst"] },
     mitfakt: { nazwa: "Mit vs fakt", pola: ["mit", "fakt"] },
     przedpo: { nazwa: "Przed / po", pola: ["tytul", "etykietaPrzed", "przed", "etykietaPo", "po"] },
@@ -35,6 +38,11 @@
     etykietaPo: { nazwa: "Etykieta „po”", domyslnie: "Napisz tak" },
     podpis: { nazwa: "Podpis", dlugie: true },
     pozycje: { nazwa: "Pozycje (jedna w linii)", lista: true },
+    wniosek: { nazwa: "Wniosek w ramce (opcjonalnie)", dlugie: true },
+    wniosekStyl: { nazwa: "Styl ramki wniosku", wybor: [["", "Jasna"], ["ciemny", "Bordowa (mocny akcent)"]] },
+    wniosekWersaliki: { nazwa: "Wniosek WERSALIKAMI", przelacznik: true, domyslnie: () => false },
+    styl: { nazwa: "Wygląd listy", wybor: [["", "Karty z ikonami"], ["os", "Ikony połączone linią (kroki)"], ["proste", "Same ikony w kółkach"]] },
+    bezTla: { nazwa: "Bez zdjęcia tła na tym slajdzie", przelacznik: true, domyslnie: () => false },
     liczba: { nazwa: "Liczba" },
     autor: { nazwa: "Autorka" },
     obraz: { nazwa: "Zdjęcie", obraz: true },
@@ -57,13 +65,13 @@
       motyw: "papier",
       slajdy: [
         { typ: "okladka", obraz: "portret", uklad: "bok", etykieta: "Grudzień w salonie", tytul: "Voucher świąteczny może przyprowadzić Ci *nową* klientkę.", podtytul: "Pod warunkiem, że zaplanujesz to, co dzieje się *po świętach*." },
-        { typ: "teza", tytul: "Kupuje jedna osoba. Przychodzi *druga*.", tekst: "Voucher to kontakt z kimś, kto jeszcze Cię nie zna. Zaplanuj, jak go zatrzymasz." },
+        { typ: "artykul", tytul: "Kupuje jedna osoba. Przychodzi *druga*.", tekst: "Voucher to kontakt z kimś, kto jeszcze Cię nie zna.\n\nJeśli nie zaplanujesz, co dzieje się po wizycie, prezent kończy się na *jednym zabiegu*.", wniosek: "{osoby} Obdarowana to _nowa klientka_, nie jednorazowa wizyta." },
         { typ: "punkt", etykieta: "Krok", tytul: "Nazwij voucher *efektem*, nie kwotą", tekst: "„Wieczór dla skóry” brzmi jak prezent. „Bon na 200 zł” brzmi jak przelew." },
         { typ: "punkt", etykieta: "Krok", tytul: "Pokaż go w reklamie *przed* 20 grudnia", tekst: "Osoba kupująca prezent szuka teraz. Prosty komunikat i jeden link do zakupu." },
         { typ: "punkt", etykieta: "Krok", tytul: "Zbierz *kontakt* do obdarowanej", tekst: "Imię i telefon przy rezerwacji vouchera to Twój kanał do follow-upu." },
         { typ: "punkt", etykieta: "Krok", tytul: "Zaplanuj *drugą* wizytę", tekst: "Przy realizacji zaproponuj kolejny termin albo pakiet startowy." },
         { typ: "wiadomosc", etykieta: "Po realizacji vouchera", tytul: "Żeby prezent zamienił się w *stałą* klientkę:", tekst: "Pani Agnieszko, dziękuję za wizytę! Skóra najlepiej odpowiada na serię zabiegów. Mam dla Pani termin za 4 tygodnie, czwartek 17:00. Zarezerwować?" },
-        { typ: "sciaga", etykieta: "Zapisz na później", tytul: "Voucher, który *pracuje*", pozycje: [] },
+        { typ: "ikony", styl: "os", tytul: "Voucher, który *pracuje*", pozycje: ["{metka} Nazwij go efektem, nie kwotą", "{megafon} Pokaż go w reklamie przed 20 grudnia", "{dymek} Zbierz kontakt do obdarowanej", "{kalendarz} Zaproponuj drugą wizytę"], wniosek: "Zapisz, żeby wrócić do tego w *styczniu*.", wniosekStyl: "ciemny" },
         { typ: "cta", tytul: "Chcesz kampanię świąteczną, która *zostaje* po świętach?", przycisk: "Umów 15 minut — link w bio", tekst: "Sprawdzimy, czy voucher w Twoim salonie może przyprowadzić nowe klientki.", wyslij: "Wyślij koleżance, która właśnie planuje grudzień.", portret: true },
       ],
     },
@@ -98,7 +106,7 @@
         { typ: "wiadomosc", etykieta: "Po 24 godzinach", tytul: "Klientka zapytała i *zamilkła*", tekst: "Pani Moniko, wracam do pytania o laminację brwi. Mam jeszcze dwa wolne terminy w tym tygodniu: środa 17:00 i piątek 12:00. Zarezerwować któryś dla Pani?" },
         { typ: "wiadomosc", etykieta: "Po 3 dniach", tytul: "Klientka *waha się* przy cenie", tekst: "Pani Moniko, klientki często pytają, czy efekt jest wart ceny. W cenie jest koloryzacja, regulacja i pielęgnacja po zabiegu. Jeśli ma Pani pytania, chętnie odpowiem." },
         { typ: "wiadomosc", etykieta: "Po wizycie", tytul: "Żeby klientka *wróciła*", tekst: "Dziękuję za dzisiejszą wizytę! Przypominam: przez pierwsze 24 h bez wody i makijażu brwi. Najlepiej wrócić za ok. 6 tygodni. Zapisać Panią już teraz na termin?" },
-        { typ: "sciaga", etykieta: "Zapisz na później", tytul: "Rytm *follow-upu*", pozycje: ["24 h: wróć z dwoma konkretnymi terminami", "3 dni: odpowiedz na wątpliwość, nie naciskaj", "Po wizycie: zalecenia i propozycja kolejnego terminu"] },
+        { typ: "ikony", styl: "os", tytul: "Rytm *follow-upu*", tekst: "Trzy momenty, w których warto się odezwać:", pozycje: ["{dymek} Po 24 h: wróć z dwoma konkretnymi terminami.", "{zarowka} Po 3 dniach: odpowiedz na wątpliwość, nie naciskaj.", "{kalendarz} Po wizycie: zalecenia i kolejny termin."], wniosek: "Follow-up _przypomina_, a nie naciska. To *realna szansa*, że klientka wróci.", wniosekStyl: "ciemny" },
         { typ: "cta", tytul: "Zapisz, zanim *zgubisz*.", slowo: "WORKBOOK", tekst: "Wyślę Ci workbook z planem pierwszego ruchu na najbliższe 7 dni.", wyslij: "Wyślij recepcji albo wspólniczce.", portret: true },
       ],
     },
@@ -129,7 +137,7 @@
       motyw: "bordo",
       slajdy: [
         { typ: "okladka", etykieta: "Niepopularna opinia", tytul: "Nie potrzebujesz więcej *obserwujących*.", podtytul: "Potrzebujesz więcej rezerwacji. To nie to samo." },
-        { typ: "teza", tytul: "Salon nie zarabia na *zasięgu*.", tekst: "Zarabia na kobietach, które mogą do Ciebie dojechać i chcą wrócić." },
+        { typ: "artykul", wersaliki: true, tytul: "Salon nie zarabia *na zasięgu*.", tekst: "Zarabia na kobietach, które mogą do Ciebie dojechać i *chcą wrócić*.\n\nTysiąc obserwujących z Twojego miasta to więcej niż dziesięć tysięcy z całej Polski.", wniosek: "{wykres} Licz _rezerwacje_, a nie serduszka." },
         { typ: "punkt", etykieta: "Zamiast licznika", tytul: "Mierz *rezerwacje* z Instagrama", tekst: "Pytaj każdą nową klientkę, skąd o Tobie wie. Zapisuj odpowiedzi." },
         { typ: "punkt", etykieta: "Zamiast licznika", tytul: "Pokazuj *efekty* i kulisy", tekst: "Metamorfozy, proces, Twoja twarz. Ludzie rezerwują u ludzi." },
         { typ: "punkt", etykieta: "Zamiast licznika", tytul: "Zamieniaj DM w *wizyty*", tekst: "Każda rozmowa kończy się propozycją konkretnego terminu." },
@@ -147,9 +155,8 @@
       slajdy: [
         { typ: "okladka", etykieta: "Weź kalkulator", tytul: "Ile jest warta *jedna* klientka, która wraca?", podtytul: "Prosty rachunek na Twoich liczbach. Poniżej przykład." },
         { typ: "teza", tytul: "Nie licz *wizyty*. Licz cały rok.", tekst: "Dopiero wtedy widać, ile możesz wydać na pozyskanie klientki i na zadbanie o nią." },
-        { typ: "liczba", etykieta: "Krok 1", liczba: "280 zł", tytul: "średnia wartość *wizyty*", tekst: "Wpisz tu swoją kwotę. To przykład." },
-        { typ: "liczba", etykieta: "Krok 2", liczba: "× 4", tytul: "tyle razy w roku wraca *zadowolona* klientka", tekst: "Przykład dla zabiegu powtarzanego co kwartał." },
-        { typ: "liczba", etykieta: "Wynik", liczba: "1 120 zł", tytul: "rocznej wartości *jednej* klientki", tekst: "Tyle może być wart kontakt, na który nikt nie odpisał." },
+        { typ: "koszty", tytul: "Załóżmy:", pozycje: ["{metka} Średnia wartość wizyty | 280 zł", "{kalendarz} Wizyty jednej klientki w roku | × 4", "{monety} Roczna wartość klientki | 1 120 zł"], tekst: "Tyle może być wart _jeden_ kontakt, na który *nikt nie odpisał*.", wniosek: "{wykres} I dopiero teraz zaczynamy liczyć.", wniosekWersaliki: true },
+        { typ: "artykul", tytul: "To nie jest *koszt*. To _brak przychodu_.", tekst: "Nieodpisana wiadomość nie pojawia się w żadnym raporcie.\n\nA właśnie tam najczęściej ucieka *klientka na cały rok*.", wniosek: "{zarowka} Wpisz swoje liczby. To przykład, nie obietnica." },
         { typ: "lista", tytul: "Co zrobić *od jutra*:", pozycje: ["Ustal okno odpowiedzi, np. 2 h w godzinach pracy", "Przygotuj 3 odpowiedzi na najczęstsze pytania", "Kończ każdą rozmowę propozycją dwóch terminów", "Przy każdej wizycie proponuj kolejny termin"] },
         { typ: "cta", tytul: "Policz to na *swoich* danych.", slowo: "WORKBOOK", tekst: "W workbooku masz kalkulator konwersji beauty i plan na 7 dni.", wyslij: "Wyślij właścicielce salonu, którą znasz.", portret: true },
       ],
@@ -184,9 +191,10 @@
     slajdy: [
       { typ: "okladka", etykieta: "Temat", tytul: "Twój hak z *jednym* wyróżnionym słowem", podtytul: "Obietnica: co klientka zyska, gdy przesunie dalej." },
       { typ: "teza", tytul: "Slajd 2 od razu daje *wartość*.", tekst: "Bez przedstawiania się. Konkret, który odpowiada na hak." },
-      { typ: "punkt", tytul: "Pierwszy *punkt*", tekst: "Jedna myśl na slajd. Do 20 słów." },
-      { typ: "punkt", tytul: "Drugi *punkt*", tekst: "Jedna myśl na slajd. Do 20 słów." },
-      { typ: "punkt", tytul: "Trzeci *punkt*", tekst: "Jedna myśl na slajd. Do 20 słów." },
+      { typ: "artykul", tytul: "Nagłówek z *kolorem* i _kursywą_.", tekst: "Pierwszy akapit: jedna myśl.\n\nDrugi akapit z *pogrubieniem* w kolorze akcentu.", wniosek: "{zarowka} Wniosek w ramce: zdanie, które czytelniczka ma zapamiętać." },
+      { typ: "ikony", tytul: "Lista z *ikonami*", pozycje: ["{kalendarz} Ikonę wybierasz w klamrach…", "…albo dobierze się sama z treści", "Na przykład do słowa „SMS” albo „promocja”"] },
+      { typ: "koszty", tytul: "Załóżmy:", pozycje: ["Pierwsza pozycja | 1 800 zł", "Druga pozycja | 1 500 zł", "Razem | 3 300 zł"], wniosek: "{wykres} I dopiero teraz zaczynamy liczyć.", wniosekWersaliki: true },
+      { typ: "punkt", tytul: "Punkt *numerowany*", tekst: "Jedna myśl na slajd." },
       { typ: "sciaga", tytul: "Ściąga do *zapisania*", pozycje: [] },
       { typ: "opinia", tekst: "[Wklej tu prawdziwą opinię klientki — bez dopisywania efektów.]", autor: "Imię, salon" },
       { typ: "cta", tytul: "Co dalej?", slowo: "WORKBOOK", tekst: "Napisz słowo w komentarzu, a wyślę Ci materiał.", wyslij: "Wyślij to koleżance, której się przyda.", portret: true },
@@ -194,14 +202,14 @@
   };
 
   // ---------- opis posta ----------
-  const bez = (t) => String(t || "").replace(/\*/g, "").trim();
+  const bez = (t) => String(t || "").replace(/[*_]/g, "").replace(/\{[^}]*\}\s*/g, "").replace(/\s*\n+\s*/g, " ").trim();
 
   function opis(k) {
     const sl = k.slajdy;
     const okl = sl.find((s) => s.typ === "okladka") || sl[0] || {};
     const teza = sl.find((s) => s.typ === "teza");
     const cta = sl.find((s) => s.typ === "cta") || {};
-    const punkty = sl.filter((s) => ["punkt", "mitfakt", "przedpo", "wiadomosc"].includes(s.typ));
+    const punkty = sl.filter((s) => ["punkt", "mitfakt", "przedpo", "wiadomosc", "artykul", "ikony", "koszty"].includes(s.typ));
     const linie = [];
     linie.push(bez(okl.tytul));
     if (teza) linie.push("", bez(teza.tytul) + " " + bez(teza.tekst));
@@ -257,7 +265,9 @@ Zasady karuzeli (trendy 2026):
 - Jedna myśl na slajd, tytuł do ok. 10 słów, tekst do ok. 20 słów.
 - Przedostatni slajd: coś do zapisania (ściąga, checklista albo gotowa wiadomość).
 - Ostatni slajd: "cta" ze słowem-kluczem do komentarza i zachętą do wysłania komuś w DM.
-- W każdym tytule wyróżnij JEDNO słowo gwiazdkami, np. "Reklama działa, a grafik dalej *pusty*?".
+- Wyróżnienia jak na moich slajdach: *gwiazdki* = słowa w kolorze akcentu (bordo/puder, pogrubione), _podkreślniki_ = kursywa (np. "Decyzje zakupowe potrafią _dojrzewać_."). W nagłówku 1–3 wyróżnione słowa.
+- Moje typowe slajdy środkowe: "artykul" (nagłówek + 1–2 krótkie akapity rozdzielone pustą linią + wniosek w ramce), "ikony" (lista z ikonami w kółkach), "koszty" (zestawienie „Etykieta | Wartość”, np. „Załóżmy:”). Pole "wniosek" to krótkie zdanie-puenta w ramce; "wniosekStyl": "ciemny" daje bordową ramkę.
+- Ikonę w pozycji lub we wniosku możesz wskazać na początku w klamrach, np. "{kalendarz} Przypominają o terminach". Dostępne ikony: kalendarz, dzwonek, serce, powrot, oko, koperta, metka, osoby, dymek, zarowka, wykres, wzrost, megafon, monety, telefon, gwiazda, zegar, cel, ok, portfel.
 
 Typy slajdów i ich pola:
 ${typy}

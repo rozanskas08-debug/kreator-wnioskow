@@ -19,6 +19,7 @@
       roza: "#8b4555", // akcent: kursywa, wyróżnione słowo, linie
       puder: "#e8cbc4", // pudrowy róż: tła, akcent na ciemnym
       brudnyRoz: "#d09a9c", // detal: kropka w sygnecie, ikony
+      karmin: "#6e1a2c", // wyróżnione słowa w nagłówkach na jasnym tle
       papier: "#f5f0eb", // główne jasne tło
       krem: "#fffbf6", // tekst na ciemnym, karty
       atrament: "#25191a", // tekst ciągły na jasnym
@@ -27,9 +28,9 @@
     // Motywy slajdów: tło, tekst, akcent, etykiety, linie
     motywy: {
       wino: { tlo: "#351018", tekst: "#fffbf6", akcent: "#e8cbc4", etykieta: "#e8cbc4", linia: "rgba(232,203,196,0.28)", ciemny: true },
-      bordo: { tlo: "#541827", tekst: "#fffbf6", akcent: "#e8cbc4", etykieta: "#e8cbc4", linia: "rgba(232,203,196,0.30)", ciemny: true },
-      papier: { tlo: "#f5f0eb", tekst: "#351018", akcent: "#8b4555", etykieta: "#541827", linia: "rgba(84,24,39,0.16)", ciemny: false },
-      puder: { tlo: "#e8cbc4", tekst: "#351018", akcent: "#8b4555", etykieta: "#541827", linia: "rgba(84,24,39,0.20)", ciemny: false },
+      bordo: { tlo: "#561522", tekst: "#fffbf6", akcent: "#e8c3ba", etykieta: "#e8cbc4", linia: "rgba(232,203,196,0.30)", ciemny: true },
+      papier: { tlo: "#f3ebe3", tekst: "#2a1517", akcent: "#6e1a2c", etykieta: "#541827", linia: "rgba(84,24,39,0.16)", ciemny: false },
+      puder: { tlo: "#ead3cc", tekst: "#2a1517", akcent: "#6e1a2c", etykieta: "#541827", linia: "rgba(84,24,39,0.20)", ciemny: false },
     },
 
     fonty: {
@@ -54,6 +55,8 @@
       "Najbrzydsza reklama czasem sprzedaje najlepiej (przed → po)",
       "Kiedyś chciałam mieć więcej, dziś wystarczająco dużo (osobisty)",
       "Opinia klientki: odzyskana wiara po martwym sezonie wakacyjnym",
+      "„Ile leadów mi zagwarantujesz?” — lead nie jest Twoim celem, zapłaciłam agencji 1 800 zł… (rentowność)",
+      "Kampanie SMS: klientka, która mówi „muszę się zastanowić”, wraca po miesiącu (decyzje zakupowe dojrzewają)",
     ],
 
     glos: {
@@ -62,7 +65,7 @@
         "Krótkie zdania. Kontrast w dwóch taktach: „Reklama to nie cel. To pierwszy ruch.”",
         "Konkret zamiast obietnic. Bez „magicznego przycisku”, bez dopisywania efektów.",
         "Język salonu i reklamy: rezerwacja, grafik, Booksy, lead, follow-up, wizyta, powrót klientki.",
-        "Jedno słowo w nagłówku może być wyróżnione kursywą — to słowo, które niesie emocję.",
+        "W nagłówku wyróżniasz słowa kolorem (bordo na jasnym, puder na ciemnym), a pojedyncze zwroty kursywą („dojrzewać”, „muszę się zastanowić”).",
         "Emoji oszczędnie (maks. 1–2 w opisie), nigdy w nagłówkach plansz.",
       ],
       tak: ["rezerwacja", "klientka", "ścieżka decyzji", "system", "pierwszy ruch", "follow-up", "konkret", "grafik", "oferta", "zaufanie"],
