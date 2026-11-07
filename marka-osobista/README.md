@@ -21,14 +21,14 @@ Otwórz `kreator-karuzel/index.html` w przeglądarce (Chrome, Edge, Safari). Nie
 
 1. **Wybierz gotową karuzelę** z biblioteki albo **napisz nową z AI**. Na claude.ai przycisk „Napisz karuzelę” robi to od razu. Lokalnie kliknij „Kopiuj prompt”, wklej go Claude i wklej odpowiedź (JSON) z powrotem.
 2. **Edytuj slajdy**: typ, motyw, teksty, zdjęcia. Słowo w `*gwiazdkach*` dostaje kursywę w kolorze akcentu. Panel „Uwagi” podpowiada, co poprawić (hak, slajd 2, długość tekstu, slajd do zapisania, CTA).
-3. **Pobierz**: „Pobierz wszystkie slajdy (ZIP)” daje PNG 1080×1440 (3:4) albo 1080×1350 (4:5) oraz gotowy opis posta z hashtagami.
+3. **Pobierz**: „Pobierz wszystkie slajdy (ZIP)” daje PNG w formacie 4:5 (1080×1350) oraz gotowy opis posta z hashtagami.
 4. **Zapisz projekt** (JSON), żeby wrócić do karuzeli później. Ostatni szkic zapisuje się też w przeglądarce.
 
 ### Typy slajdów
 Okładka (sam tekst / zdjęcie z prawej / zdjęcie w tle) · Teza · Punkt numerowany · Mit vs fakt · Przed/po · Gotowa wiadomość · Checklista · Liczba/krok · Cytat · Opinia klientki · Zdjęcie · Ściąga (zbiera punkty automatycznie) · CTA ze słowem-kluczem.
 
 ### Co wynika z trendów 2026
-- format 3:4, bo tak siatka pokazuje posty;
+- format 4:5 (1080×1350) — aktualny format karuzel na Instagramie;
 - 7–10 slajdów;
 - hak na okładce, a slajd 2 od razu daje wartość;
 - jedna myśl na slajd;

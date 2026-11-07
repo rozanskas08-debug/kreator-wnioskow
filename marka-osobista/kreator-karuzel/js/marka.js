@@ -110,10 +110,9 @@
       ],
     },
 
-    // Formaty karuzel. 3:4 = tak Instagram pokazuje siatkę profilu od 2025 r.
+    // Format karuzel: 4:5, 1080×1350 — aktualny format karuzel na Instagramie
     formaty: {
-      "3:4": { w: 1080, h: 1440, opis: "1080×1440 · pełna siatka profilu (zalecany)" },
-      "4:5": { w: 1080, h: 1350, opis: "1080×1350 · klasyczny pionowy post" },
+      "4:5": { w: 1080, h: 1350, opis: "1080×1350 · format karuzel na Instagramie" },
     },
     margines: 96,
   };

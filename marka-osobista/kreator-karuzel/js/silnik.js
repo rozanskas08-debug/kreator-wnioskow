@@ -210,7 +210,7 @@
 
   // ---------- geometria ----------
   function wymiary(k) {
-    const f = M.formaty[k.format] || M.formaty["3:4"];
+    const f = M.formaty[k.format] || M.formaty["4:5"];
     return { W: f.w, H: f.h };
   }
   function motywSlajdu(k, s) {
@@ -335,11 +335,12 @@
     }
   }
   function punktyNici(n, W, H) {
-    const pts = [[-W / 2, H - 210]];
+    const baza = H - 168; // między treścią a stopką
+    const pts = [[-W / 2, baza]];
     for (let i = 0; i <= n * 2; i++) {
-      pts.push([(i * W) / 2, H - 210 + Math.sin(i * 1.7 + 0.6) * 26 + Math.cos(i * 0.9) * 12]);
+      pts.push([(i * W) / 2, baza + Math.sin(i * 1.7 + 0.6) * 16 + Math.cos(i * 0.9) * 7]);
     }
-    pts.push([n * W + W / 2, H - 210]);
+    pts.push([n * W + W / 2, baza]);
     return pts;
   }
   function sciezka(ctx, pts) {
@@ -893,7 +894,7 @@
     const { W, H, m, o } = c;
     let y = o.y + 40;
     if (s.portret !== false) {
-      const d = 230;
+      const d = 200;
       const img = gotowy(Z.portret);
       ctx.save();
       ctx.strokeStyle = m.akcent;
@@ -906,9 +907,9 @@
       ctx.clip();
       if (img) wpisz(ctx, img, o.x, y, d, d, 0.18, 0.5);
       ctx.restore();
-      y += d + 70;
+      y += d + 60;
     }
-    const tb = dopasuj(ctx, s.tytul, { maxW: o.w, maxH: 300, start: 100, min: 48, lh: 1.0, font: fNag, ls: -0.02, wersaliki: wersal(s, false) });
+    const tb = dopasuj(ctx, s.tytul, { maxW: o.w, maxH: 280, start: 96, min: 48, lh: 1.0, font: fNag, ls: -0.02, wersaliki: wersal(s, false) });
     pisz(ctx, tb, o.x, y, { font: fNag, kolor: m.tekst, akcent: m.akcent });
     y += tb.h + 50;
     if (s.slowo || s.przycisk) {
@@ -927,7 +928,8 @@
       y += h + 46;
     }
     if (s.tekst) {
-      const pb = dopasuj(ctx, s.tekst, { maxW: o.w * 0.9, maxH: 170, start: 36, min: 24, lh: 1.4, font: fTresc });
+      const miejsce = o.dol - 70 - y - (s.wyslij ? 70 : 0);
+      const pb = dopasuj(ctx, s.tekst, { maxW: o.w * 0.9, maxH: Math.max(50, Math.min(170, miejsce)), start: 34, min: 22, lh: 1.4, font: fTresc });
       ctx.globalAlpha = 0.9;
       pisz(ctx, pb, o.x, y, { font: fTresc, kolor: m.tekst, akcent: m.akcent });
       ctx.globalAlpha = 1;
@@ -935,7 +937,7 @@
     }
     if (s.wyslij) {
       const fW = (r) => F.nag(r, 400, true);
-      const pb = dopasuj(ctx, s.wyslij, { maxW: o.w * 0.9, maxH: 120, start: 36, min: 24, lh: 1.3, font: fW });
+      const pb = dopasuj(ctx, s.wyslij, { maxW: o.w * 0.9, maxH: Math.max(40, Math.min(120, o.dol - 70 - y)), start: 34, min: 22, lh: 1.3, font: fW });
       pisz(ctx, pb, o.x, y, { font: fW, kolor: m.akcent, akcent: m.akcent });
     }
   };

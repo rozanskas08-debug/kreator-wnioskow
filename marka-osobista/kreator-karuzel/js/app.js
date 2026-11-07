@@ -6,7 +6,7 @@
   const KLUCZ = "kreator-karuzel:szkic";
 
   const kopia = (o) => JSON.parse(JSON.stringify(o));
-  const nowa = (wzor) => ({ format: "3:4", ciaglosc: true, ...kopia(wzor) });
+  const nowa = (wzor) => ({ ciaglosc: true, ...kopia(wzor), format: "4:5" });
 
   let k = null;
   let wybrany = 0;
@@ -66,7 +66,7 @@
 
   async function ustaw(nowaK, idx = 0) {
     k = nowaK;
-    if (!k.format) k.format = "3:4";
+    if (!M.formaty[k.format]) k.format = "4:5"; // zawsze 4:5, także w starych szkicach
     wybrany = Math.min(idx, k.slajdy.length - 1);
     $("format").value = k.format;
     $("motyw").value = k.motyw || "papier";
