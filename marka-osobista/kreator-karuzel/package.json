@@ -1,0 +1,14 @@
+{
+  "name": "kreator-karuzel",
+  "private": true,
+  "description": "Kreator karuzel na Instagram w stylu marki Sylwia Ida Różańska",
+  "type": "module",
+  "scripts": {
+    "render": "node narzedzia/render.mjs",
+    "render:wszystkie": "node narzedzia/render.mjs --wszystkie wyniki",
+    "zasoby": "node narzedzia/zasoby.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.48.0"
+  }
+}

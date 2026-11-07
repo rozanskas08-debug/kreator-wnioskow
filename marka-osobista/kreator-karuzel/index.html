@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kreator Karuzel</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Fonty dołączone lokalnie (licencja OFL, fonts/OFL.txt) — działa też offline. */
+@font-face { font-family: 'Playfair Display'; src: url('fonts/PlayfairDisplay.ttf') format('truetype'); font-weight: 400 900; font-style: normal; font-display: block; }
+@font-face { font-family: 'Playfair Display'; src: url('fonts/PlayfairDisplay-Italic.ttf') format('truetype'); font-weight: 400 900; font-style: italic; font-display: block; }
+@font-face { font-family: 'Cormorant Garamond'; src: url('fonts/CormorantGaramond.ttf') format('truetype'); font-weight: 300 700; font-style: normal; font-display: block; }
+@font-face { font-family: 'Cormorant Garamond'; src: url('fonts/CormorantGaramond-Italic.ttf') format('truetype'); font-weight: 300 700; font-style: italic; font-display: block; }
+@font-face { font-family: 'Manrope'; src: url('fonts/Manrope.ttf') format('truetype'); font-weight: 200 800; font-style: normal; font-display: block; }
+/* Układ: pulpit redakcyjny — biblioteka po lewej, panorama slajdów u góry, podgląd + edycja pod nią.
+   Jeden, świadomie jasny wygląd w kolorach marki (papier + bordo), niezależnie od motywu systemu. */
+:root {
+  --papier: #f5f0eb; --krem: #fffbf6; --bordo: #541827; --wino: #351018;
+  --roza: #8b4555; --puder: #e8cbc4; --atrament: #25191a;
+  --linia: rgba(84, 24, 39, 0.16); --mgla: rgba(37, 25, 26, 0.62);
+  --ok: #3f6b4a; --uwaga: #9a5b13;
+  --f-disp: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  --f-txt: 'Manrope', 'Segoe UI', Arial, sans-serif;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; }
+body { background: var(--papier); color: var(--atrament); font: 15px/1.5 var(--f-txt); }
+button, input, select, textarea { font: inherit; color: inherit; }
+.pas { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+header.gora { background: var(--wino); color: var(--krem); }
+header.gora .wn { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; padding-block: 14px; max-width: 1480px; margin: 0 auto; }
+.marka { display: flex; align-items: center; gap: 12px; margin-right: auto; }
+.marka img { width: 38px; height: 38px; }
+.marka h1 { font: 500 30px/1 var(--f-disp); letter-spacing: -0.02em; margin: 0; }
+.marka h1 em { color: var(--puder); }
+.marka small { display: block; font: 700 10px/1.2 var(--f-txt); letter-spacing: 0.2em; text-transform: uppercase; color: var(--puder); opacity: .85; margin-top: 4px; }
+.ust { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.ust label { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; font-weight: 700; color: var(--puder); display: flex; gap: 8px; align-items: center; }
+.ust select { background: transparent; color: var(--krem); border: 1px solid rgba(232,203,196,.4); padding: 6px 8px; border-radius: 0; }
+.ust select option { color: var(--atrament); }
+
+.btn { border: 1px solid var(--bordo); background: transparent; color: var(--bordo); padding: 9px 16px; cursor: pointer; font-weight: 700; font-size: 13px; letter-spacing: .02em; border-radius: 0; display: inline-flex; gap: 8px; align-items: center; }
+.btn:hover { background: rgba(84,24,39,.06); }
+.btn.pelny { background: var(--bordo); color: var(--krem); }
+.btn.pelny:hover { background: var(--wino); }
+.btn.jasny { border-color: var(--puder); color: var(--krem); }
+.btn.jasny.pelny { background: var(--puder); color: var(--wino); }
+.btn:disabled { opacity: .5; cursor: progress; }
+.btn:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible, .miniatura:focus-visible { outline: 2px solid var(--roza); outline-offset: 2px; }
+
+main { max-width: 1480px; margin: 0 auto; display: grid; grid-template-columns: 330px minmax(0, 1fr); gap: 28px; padding-block: 24px 48px; }
+@media (max-width: 980px) { main { grid-template-columns: minmax(0, 1fr); } }
+
+.etk { font: 700 10.5px/1.2 var(--f-txt); letter-spacing: .2em; text-transform: uppercase; color: var(--roza); display: flex; align-items: center; gap: 10px; margin: 0 0 12px; }
+.etk::before { content: ""; width: 26px; height: 1.5px; background: currentColor; }
+aside section { border-top: 1px solid var(--linia); padding-block: 18px; }
+aside section:first-child { border-top: 0; padding-top: 0; }
+aside h2, .naglowek-sekcji { font: 500 26px/1.05 var(--f-disp); letter-spacing: -0.02em; margin: 0 0 12px; color: var(--wino); }
+aside h2 em, .naglowek-sekcji em { color: var(--roza); }
+
+.biblioteka { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.biblioteka button { width: 100%; text-align: left; background: transparent; border: 0; border-left: 2px solid transparent; padding: 9px 12px; cursor: pointer; display: grid; gap: 2px; }
+.biblioteka button:hover { background: rgba(232,203,196,.35); }
+.biblioteka button[aria-current="true"] { border-left-color: var(--bordo); background: rgba(232,203,196,.5); }
+.biblioteka b { font: 600 15px/1.25 var(--f-txt); color: var(--wino); }
+.biblioteka span { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--mgla); font-weight: 700; }
+
+.pole { display: grid; gap: 6px; margin-bottom: 12px; }
+.pole > span { font: 700 10.5px/1.2 var(--f-txt); letter-spacing: .14em; text-transform: uppercase; color: var(--mgla); }
+.pole input[type=text], .pole select, .pole textarea { width: 100%; background: var(--krem); border: 1px solid var(--linia); padding: 9px 11px; border-radius: 0; }
+.pole textarea { resize: vertical; min-height: 64px; line-height: 1.45; }
+.pole .licznik { font-size: 11px; color: var(--mgla); justify-self: end; margin-top: -2px; }
+.pole .licznik.za-duzo { color: var(--uwaga); font-weight: 700; }
+.rzad { display: flex; flex-wrap: wrap; gap: 8px; }
+.pomoc { font-size: 12.5px; color: var(--mgla); margin: 6px 0 0; }
+.uwagi { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.uwagi li { font-size: 13px; padding: 8px 10px; background: var(--krem); border-left: 3px solid var(--uwaga); }
+.uwagi li.ok { border-left-color: var(--ok); }
+.stan { font-size: 13px; color: var(--mgla); min-height: 1.4em; margin: 8px 0 0; }
+.stan.blad { color: #a1271b; }
+
+.tasma-opak { overflow-x: auto; background: var(--krem); border: 1px solid var(--linia); padding: 14px; }
+.tasma { display: flex; gap: var(--szczelina, 10px); width: max-content; }
+.miniatura { position: relative; border: 0; padding: 0; background: none; cursor: pointer; display: block; }
+.miniatura canvas { display: block; width: 150px; height: auto; }
+.miniatura::after { content: ""; position: absolute; inset: 0; border: 2px solid transparent; pointer-events: none; }
+.miniatura[aria-current="true"]::after { border-color: var(--bordo); }
+.miniatura .nr { position: absolute; left: 6px; top: 6px; background: var(--wino); color: var(--krem); font: 700 10px/1 var(--f-txt); padding: 4px 6px; letter-spacing: .1em; }
+.pasek-tasmy { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; justify-content: space-between; margin: 0 0 10px; }
+.pasek-tasmy label { font-size: 13px; display: flex; gap: 8px; align-items: center; }
+
+.warsztat { display: grid; grid-template-columns: minmax(0, 480px) minmax(0, 1fr); gap: 28px; margin-top: 22px; align-items: start; }
+@media (max-width: 1180px) { .warsztat { grid-template-columns: minmax(0, 1fr); } }
+.podglad canvas { width: 100%; height: auto; display: block; box-shadow: 14px 14px 0 var(--puder); }
+.podglad .rzad { margin-top: 26px; }
+.edytor { background: var(--krem); border: 1px solid var(--linia); padding: 20px; min-width: 0; }
+.edytor .rzad { margin-bottom: 14px; }
+.dwie { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+@media (max-width: 520px) { .dwie { grid-template-columns: 1fr; } }
+.przelacznik { display: flex; gap: 10px; align-items: center; font-size: 14px; margin-bottom: 12px; }
+textarea#opis { min-height: 220px; font-size: 13.5px; }
+.ukryty { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<header class="gora">
+  <div class="wn pas">
+    <div class="marka">
+      <img id="sygnet" alt="">
+      <div>
+        <h1>Kreator <em>Karuzel</em></h1>
+        <small>Sylwia Ida Różańska · Marketing Beauty</small>
+      </div>
+    </div>
+    <div class="ust">
+      <label for="format">Format
+        <select id="format"></select>
+      </label>
+      <label for="motyw">Motyw
+        <select id="motyw">
+          <option value="papier">Papier</option>
+          <option value="puder">Puder</option>
+          <option value="bordo">Bordo</option>
+          <option value="wino">Wino</option>
+        </select>
+      </label>
+      <button class="btn jasny pelny" id="eksport-zip" type="button">Pobierz wszystkie slajdy (ZIP)</button>
+    </div>
+  </div>
+</header>
+
+<main class="pas">
+  <aside>
+    <section>
+      <p class="etk">Biblioteka</p>
+      <h2>Gotowe <em>karuzele</em></h2>
+      <ul class="biblioteka" id="biblioteka"></ul>
+    </section>
+
+    <section>
+      <p class="etk">Nowa karuzela</p>
+      <h2>Napisz z <em>AI</em></h2>
+      <label class="pole" for="ai-temat"><span>Temat</span>
+        <textarea id="ai-temat" rows="2">Jak odpowiadać na pytanie „ile kosztuje?”, żeby klientka zarezerwowała</textarea>
+      </label>
+      <div class="dwie">
+        <label class="pole" for="ai-filar"><span>Filar</span><select id="ai-filar"></select></label>
+        <label class="pole" for="ai-ile"><span>Slajdów</span>
+          <select id="ai-ile"><option>6</option><option>7</option><option selected>8</option><option>9</option><option>10</option><option>12</option></select>
+        </label>
+      </div>
+      <label class="pole" for="ai-oferta"><span>CTA prowadzi do</span><select id="ai-oferta"></select></label>
+      <div class="rzad">
+        <button class="btn pelny" id="ai-generuj" type="button">Napisz karuzelę</button>
+        <button class="btn" id="ai-prompt" type="button">Kopiuj prompt</button>
+      </div>
+      <p class="stan" id="ai-stan" role="status"></p>
+      <details>
+        <summary class="pomoc">Masz JSON z Claude? Wklej go tutaj</summary>
+        <label class="pole" for="json-wklej" style="margin-top:10px"><span>JSON karuzeli</span>
+          <textarea id="json-wklej" rows="4" placeholder='{"seria": "...", "slajdy": [...]}'></textarea>
+        </label>
+        <button class="btn" id="json-wczytaj" type="button">Wczytaj</button>
+      </details>
+    </section>
+
+    <section>
+      <p class="etk">Redakcja</p>
+      <h2>Uwagi do <em>tej</em> karuzeli</h2>
+      <ul class="uwagi" id="uwagi"></ul>
+    </section>
+  </aside>
+
+  <div style="min-width:0">
+    <div class="pasek-tasmy">
+      <div>
+        <p class="etk" style="margin:0 0 4px">Panorama</p>
+        <span class="naglowek-sekcji" id="tytul-karuzeli" style="font-size:30px">—</span>
+      </div>
+      <div class="rzad" style="align-items:center">
+        <label for="ciaglosc"><input type="checkbox" id="ciaglosc" checked> Ciągła nić między slajdami</label>
+        <label for="bez-przerw"><input type="checkbox" id="bez-przerw"> Pokaż bez przerw</label>
+      </div>
+    </div>
+    <div class="tasma-opak"><div class="tasma" id="tasma"></div></div>
+
+    <div class="warsztat">
+      <div class="podglad">
+        <canvas id="podglad" aria-label="Podgląd wybranego slajdu"></canvas>
+        <div class="rzad">
+          <button class="btn" id="eksport-png" type="button">Pobierz ten slajd (PNG)</button>
+          <button class="btn" id="zapisz-json" type="button">Zapisz projekt</button>
+          <label class="btn" for="wczytaj-plik">Otwórz projekt<input class="ukryty" type="file" id="wczytaj-plik" accept=".json,application/json"></label>
+        </div>
+        <p class="stan" id="stan-eksportu" role="status"></p>
+      </div>
+
+      <div style="display:grid;gap:22px;min-width:0">
+        <div class="edytor">
+          <p class="etk" id="edytor-etk">Slajd</p>
+          <div class="rzad">
+            <button class="btn" type="button" data-akcja="gora" title="Przesuń w lewo">← Wcześniej</button>
+            <button class="btn" type="button" data-akcja="dol" title="Przesuń w prawo">Później →</button>
+            <button class="btn" type="button" data-akcja="kopia">Duplikuj</button>
+            <button class="btn" type="button" data-akcja="usun">Usuń</button>
+          </div>
+          <div class="dwie">
+            <label class="pole" for="typ"><span>Typ slajdu</span><select id="typ"></select></label>
+            <label class="pole" for="motyw-slajdu"><span>Motyw slajdu</span>
+              <select id="motyw-slajdu">
+                <option value="">Jak cała karuzela</option>
+                <option value="papier">Papier</option><option value="puder">Puder</option>
+                <option value="bordo">Bordo</option><option value="wino">Wino</option>
+              </select>
+            </label>
+          </div>
+          <div id="pola"></div>
+          <p class="pomoc">Słowo w <b>*gwiazdkach*</b> dostaje kursywę w kolorze akcentu. Enter w tytule łamie linię.</p>
+          <div class="rzad" style="margin:16px 0 0">
+            <label class="pole" for="nowy-typ" style="margin:0;flex:1;min-width:180px"><span>Dodaj slajd po tym</span><select id="nowy-typ"></select></label>
+            <button class="btn pelny" type="button" id="dodaj" style="align-self:end">Dodaj slajd</button>
+          </div>
+        </div>
+
+        <div class="edytor">
+          <p class="etk">Ustawienia karuzeli</p>
+          <div class="dwie">
+            <label class="pole" for="seria"><span>Seria (nagłówek slajdów)</span><input type="text" id="seria"></label>
+            <label class="pole" for="nr"><span>Numer wydania</span><input type="text" id="nr"></label>
+          </div>
+        </div>
+
+        <div class="edytor">
+          <p class="etk">Opis posta</p>
+          <label class="pole" for="opis"><span>Gotowy do wklejenia na Instagram</span><textarea id="opis"></textarea></label>
+          <div class="rzad">
+            <button class="btn pelny" id="kopiuj-opis" type="button">Kopiuj opis</button>
+            <button class="btn" id="odswiez-opis" type="button">Wygeneruj ponownie</button>
+          </div>
+          <p class="stan" id="stan-opisu" role="status"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script src="js/marka.js"></script>
+<script src="js/zasoby.js"></script>
+<script src="js/silnik.js"></script>
+<script src="js/szablony.js"></script>
+<script src="js/zip.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

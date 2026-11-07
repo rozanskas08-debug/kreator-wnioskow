@@ -1,0 +1,68 @@
+{
+  "format": "3:4",
+  "id": "voucher-swieta",
+  "filar": "sprzedaz",
+  "nazwa": "Voucher świąteczny = nowa klientka",
+  "seria": "Sezon w salonie",
+  "nr": "01",
+  "motyw": "papier",
+  "slajdy": [
+    {
+      "typ": "okladka",
+      "obraz": "portret",
+      "uklad": "bok",
+      "etykieta": "Grudzień w salonie",
+      "tytul": "Voucher świąteczny może przyprowadzić Ci *nową* klientkę.",
+      "podtytul": "Pod warunkiem, że zaplanujesz to, co dzieje się *po świętach*."
+    },
+    {
+      "typ": "teza",
+      "tytul": "Kupuje jedna osoba. Przychodzi *druga*.",
+      "tekst": "Voucher to kontakt z kimś, kto jeszcze Cię nie zna. Zaplanuj, jak go zatrzymasz."
+    },
+    {
+      "typ": "punkt",
+      "etykieta": "Krok",
+      "tytul": "Nazwij voucher *efektem*, nie kwotą",
+      "tekst": "„Wieczór dla skóry” brzmi jak prezent. „Bon na 200 zł” brzmi jak przelew."
+    },
+    {
+      "typ": "punkt",
+      "etykieta": "Krok",
+      "tytul": "Pokaż go w reklamie *przed* 20 grudnia",
+      "tekst": "Osoba kupująca prezent szuka teraz. Prosty komunikat i jeden link do zakupu."
+    },
+    {
+      "typ": "punkt",
+      "etykieta": "Krok",
+      "tytul": "Zbierz *kontakt* do obdarowanej",
+      "tekst": "Imię i telefon przy rezerwacji vouchera to Twój kanał do follow-upu."
+    },
+    {
+      "typ": "punkt",
+      "etykieta": "Krok",
+      "tytul": "Zaplanuj *drugą* wizytę",
+      "tekst": "Przy realizacji zaproponuj kolejny termin albo pakiet startowy."
+    },
+    {
+      "typ": "wiadomosc",
+      "etykieta": "Po realizacji vouchera",
+      "tytul": "Żeby prezent zamienił się w *stałą* klientkę:",
+      "tekst": "Pani Agnieszko, dziękuję za wizytę! Skóra najlepiej odpowiada na serię zabiegów. Mam dla Pani termin za 4 tygodnie, czwartek 17:00. Zarezerwować?"
+    },
+    {
+      "typ": "sciaga",
+      "etykieta": "Zapisz na później",
+      "tytul": "Voucher, który *pracuje*",
+      "pozycje": []
+    },
+    {
+      "typ": "cta",
+      "tytul": "Chcesz kampanię świąteczną, która *zostaje* po świętach?",
+      "przycisk": "Umów 15 minut — link w bio",
+      "tekst": "Sprawdzimy, czy voucher w Twoim salonie może przyprowadzić nowe klientki.",
+      "wyslij": "Wyślij koleżance, która właśnie planuje grudzień.",
+      "portret": true
+    }
+  ]
+}
